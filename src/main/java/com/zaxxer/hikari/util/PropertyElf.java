@@ -26,11 +26,10 @@ import java.util.regex.Pattern;
 
 /**
  * A class that reflectively sets bean properties on a target object.
- *
+ * 从 Properties 或系统属性中读取配置 设置的到目标对象
  * @author Brett Wooldridge
  */
-public final class PropertyElf
-{
+public final class PropertyElf {
    private static final char ESCAPE_CHAR = '\\';
    private static final char SEPARATOR_CHAR = ',';
    private static final Pattern DURATION_PATTERN = Pattern.compile("^(?<number>\\d+)(?<unit>ms|s|m|h|d)$");
@@ -39,8 +38,7 @@ public final class PropertyElf
       // cannot be constructed
    }
 
-   public static void setTargetFromProperties(final Object target, final Properties properties)
-   {
+   public static void setTargetFromProperties(final Object target, final Properties properties) {
       if (target == null || properties == null) {
          return;
       }
@@ -50,8 +48,7 @@ public final class PropertyElf
          var keyName = key.toString();
          if (target instanceof HikariConfig && keyName.startsWith("dataSource.")) {
             ((HikariConfig) target).addDataSourceProperty(keyName.substring("dataSource.".length()), value);
-         }
-         else {
+         } else {
             setProperty(target, keyName, value, methods);
          }
       });
@@ -63,8 +60,7 @@ public final class PropertyElf
     * @param targetClass the target object
     * @return a set of property names
     */
-   public static Set<String> getPropertyNames(final Class<?> targetClass)
-   {
+   public static Set<String> getPropertyNames(final Class<?> targetClass) {
       var set = new HashSet<String>();
       for (var method : targetClass.getMethods()) {
          var name = propertyNameFromGetterName(method.getName());
@@ -73,8 +69,7 @@ public final class PropertyElf
                targetClass.getMethod("set" + capitalizedPropertyName(name), method.getReturnType()); // throws if method setter does not exist
                set.add(name);
             }
-         }
-         catch (Exception e) {
+         } catch (Exception e) {
             // fall thru (continue)
          }
       }
@@ -82,40 +77,34 @@ public final class PropertyElf
       return set;
    }
 
-   public static Object getProperty(final String propName, final Object target)
-   {
+   public static Object getProperty(final String propName, final Object target) {
       try {
          // use the english locale to avoid the infamous turkish locale bug
          var capitalized = "get" + capitalizedPropertyName(propName);
          var method = target.getClass().getMethod(capitalized);
          return method.invoke(target);
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
          try {
             var capitalized = "is" + capitalizedPropertyName(propName);
             var method = target.getClass().getMethod(capitalized);
             return method.invoke(target);
-         }
-         catch (Exception e2) {
+         } catch (Exception e2) {
             return null;
          }
       }
    }
 
-   public static Properties copyProperties(final Properties props)
-   {
+   public static Properties copyProperties(final Properties props) {
       var copy = new Properties();
       props.forEach((key, value) -> copy.setProperty(key.toString(), value.toString()));
       return copy;
    }
 
-   private static String propertyNameFromGetterName(final String methodName)
-   {
+   private static String propertyNameFromGetterName(final String methodName) {
       String name = null;
       if (methodName.startsWith("get") && methodName.length() > 3) {
          name = methodName.substring(3);
-      }
-      else if (methodName.startsWith("is") && methodName.length() > 2) {
+      } else if (methodName.startsWith("is") && methodName.length() > 2) {
          name = methodName.substring(2);
       }
 
@@ -126,8 +115,7 @@ public final class PropertyElf
       return null;
    }
 
-   private static void setProperty(final Object target, final String propName, final Object propValue, final List<Method> methods)
-   {
+   private static void setProperty(final Object target, final String propName, final Object propValue, final List<Method> methods) {
       final var logger = LoggerFactory.getLogger(PropertyElf.class);
 
       // use the english locale to avoid the infamous turkish locale bug
@@ -149,54 +137,42 @@ public final class PropertyElf
          String value = propValue.toString();
          if (paramClass == int.class) {
             writeMethod.invoke(target, Integer.parseInt(propValue.toString()));
-         }
-         else if (paramClass == long.class) {
+         } else if (paramClass == long.class) {
             writeMethod.invoke(target, parseDuration(value).map(Duration::toMillis).orElseGet(() -> Long.parseLong(value)));
-         }
-         else if (paramClass == short.class) {
+         } else if (paramClass == short.class) {
             writeMethod.invoke(target, Short.parseShort(value));
-         }
-         else if (paramClass == boolean.class || paramClass == Boolean.class) {
+         } else if (paramClass == boolean.class || paramClass == Boolean.class) {
             writeMethod.invoke(target, Boolean.parseBoolean(value));
-         }
-         else if (paramClass.isArray() && char.class.isAssignableFrom(paramClass.getComponentType())) {
+         } else if (paramClass.isArray() && char.class.isAssignableFrom(paramClass.getComponentType())) {
             writeMethod.invoke(target, value.toCharArray());
-         }
-         else if (paramClass.isArray() && int.class.isAssignableFrom(paramClass.getComponentType())) {
+         } else if (paramClass.isArray() && int.class.isAssignableFrom(paramClass.getComponentType())) {
             writeMethod.invoke(target, parseIntArray(value));
-         }
-         else if (paramClass.isArray() && String.class.isAssignableFrom(paramClass.getComponentType())) {
+         } else if (paramClass.isArray() && String.class.isAssignableFrom(paramClass.getComponentType())) {
             writeMethod.invoke(target, new Object[]{parseStringArray(value)});
-         }
-         else if (paramClass == String.class) {
+         } else if (paramClass == String.class) {
             writeMethod.invoke(target, value);
-         }
-         else {
+         } else {
             try {
                logger.debug("Try to create a new instance of \"{}\"", propValue);
                writeMethod.invoke(target, Class.forName(propValue.toString()).getDeclaredConstructor().newInstance());
-            }
-            catch (InstantiationException | ClassNotFoundException e) {
+            } catch (InstantiationException | ClassNotFoundException e) {
                logger.debug("Class \"{}\" not found or could not instantiate it (Default constructor)", propValue);
                writeMethod.invoke(target, propValue);
             }
          }
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
          logger.error("Failed to set property {} on target {}", propName, target.getClass(), e);
          throw new RuntimeException(e);
       }
    }
 
-   private static String capitalizedPropertyName(String propertyName)
-   {
+   private static String capitalizedPropertyName(String propertyName) {
       // use the english locale to avoid the infamous turkish locale bug
       return propertyName.substring(0, 1).toUpperCase(Locale.ENGLISH) + propertyName.substring(1);
    }
 
-   private static int[] parseIntArray(String value)
-   {
-      if (value == null || value.isEmpty() ) {
+   private static int[] parseIntArray(String value) {
+      if (value == null || value.isEmpty()) {
          return new int[0];
       }
 
@@ -208,8 +184,7 @@ public final class PropertyElf
       return intArray;
    }
 
-   private static String[] parseStringArray(String value)
-   {
+   private static String[] parseStringArray(String value) {
       if (value == null || value.isEmpty()) {
          return new String[0];
       }
@@ -217,19 +192,16 @@ public final class PropertyElf
       var resultList = new ArrayList<String>();
       var inEscape = false;
       var currentField = new StringBuilder();
-      for (var c : value.toCharArray())
-      {
+      for (var c : value.toCharArray()) {
          if (inEscape) {
             currentField.append(c);
             inEscape = false;
-         }
-         else if (c == ESCAPE_CHAR) {
+         } else if (c == ESCAPE_CHAR) {
             inEscape = true;
          } else if (c == SEPARATOR_CHAR) {
             resultList.add(currentField.toString());
             currentField.setLength(0);
-         }
-         else {
+         } else {
             currentField.append(c);
          }
       }
@@ -242,8 +214,7 @@ public final class PropertyElf
       return resultList.toArray(new String[0]);
    }
 
-   private static Optional<Duration> parseDuration(String value)
-   {
+   private static Optional<Duration> parseDuration(String value) {
       var matcher = DURATION_PATTERN.matcher(value);
       if (matcher.matches()) {
          var number = Long.parseLong(matcher.group("number"));

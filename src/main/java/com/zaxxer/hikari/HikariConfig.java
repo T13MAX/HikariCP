@@ -41,64 +41,112 @@ import static com.zaxxer.hikari.util.UtilityElf.*;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+/**
+ * Hikari配置
+ *
+ * @Author t13max
+ * @Date 14:58 2025/7/16
+ */
 @SuppressWarnings({"SameParameterValue", "unused"})
-public class HikariConfig implements HikariConfigMXBean
-{
+public class HikariConfig implements HikariConfigMXBean {
+
+   // 日志记录器 用于输出日志信息
    private static final Logger LOGGER = LoggerFactory.getLogger(HikariConfig.class);
-
+   // 用于生成ID的字符集 包含数字和大小写字母
    private static final char[] ID_CHARACTERS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+   // 默认连接超时时间 30秒 转毫秒
    private static final long CONNECTION_TIMEOUT = SECONDS.toMillis(30);
+   // 默认校验超时时间 5秒 转毫秒
    private static final long VALIDATION_TIMEOUT = SECONDS.toMillis(5);
+   // 超时下限 默认250毫秒 可以通过系统属性配置
    private static final long SOFT_TIMEOUT_FLOOR = Long.getLong("com.zaxxer.hikari.timeoutMs.floor", 250L);
+   // 空闲连接超时时间 10分钟 转毫秒
    private static final long IDLE_TIMEOUT = MINUTES.toMillis(10);
+   // 连接最大生命周期 30分钟 转毫秒
    private static final long MAX_LIFETIME = MINUTES.toMillis(30);
+   // 连接保持活跃时间 默认2分钟 转毫秒
    private static final long DEFAULT_KEEPALIVE_TIME = MINUTES.toMillis(2);
+   // 默认连接池大小
    private static final int DEFAULT_POOL_SIZE = 10;
-
+   // 是否为单元测试模式
    private static boolean unitTest = false;
 
-   // Properties changeable at runtime through the HikariConfigMXBean
-   //
+   // 以下属性可以通过HikariConfigMXBean在运行时修改
+
+   // 当前数据库目录（catalog）
    private volatile String catalog;
+   // 连接超时时间 毫秒
    private volatile long connectionTimeout;
+   // 校验超时时间 毫秒
    private volatile long validationTimeout;
+   // 空闲连接超时时间 毫秒
    private volatile long idleTimeout;
+   // 连接泄漏检测阈值 毫秒
    private volatile long leakDetectionThreshold;
+   // 连接最大生命周期 毫秒
    private volatile long maxLifetime;
+   // 最大连接池大小
    private volatile int maxPoolSize;
+   // 最小空闲连接数
    private volatile int minIdle;
+   // 认证信息 原子引用 保证线程安全
    private final AtomicReference<Credentials> credentials = new AtomicReference<>(Credentials.of(null, null));
 
-   // Properties NOT changeable at runtime
-   //
+   // 以下属性运行时不可修改
+
+   // 初始化失败时的超时时间
    private long initializationFailTimeout;
+   // 连接初始化执行的SQL
    private String connectionInitSql;
+   // 连接测试SQL
    private String connectionTestQuery;
+   // 数据源类名
    private String dataSourceClassName;
+   // JNDI数据源名称
    private String dataSourceJndiName;
+   // 驱动类名
    private String driverClassName;
+   // 异常覆盖类名
    private String exceptionOverrideClassName;
+   // 异常覆盖实现
    private SQLExceptionOverride exceptionOverride;
+   // JDBC连接URL
    private String jdbcUrl;
+   // 连接池名称
    private String poolName;
+   // 数据库schema名称
    private String schema;
+   // 事务隔离级别名称
    private String transactionIsolationName;
+   // 自动提交标志
    private boolean isAutoCommit;
+   // 是否只读连接标志
    private boolean isReadOnly;
+   // 是否隔离内部查询标志
    private boolean isIsolateInternalQueries;
+   // 是否注册MBean标志
    private boolean isRegisterMbeans;
+   // 是否允许连接池挂起标志
    private boolean isAllowPoolSuspension;
+   // 数据源实例
    private DataSource dataSource;
+   // 数据源属性配置
    private Properties dataSourceProperties;
+   // 线程工厂 用于创建线程
    private ThreadFactory threadFactory;
+   // 定时任务执行器
    private ScheduledExecutorService scheduledExecutor;
+   // 指标追踪工厂
    private MetricsTrackerFactory metricsTrackerFactory;
+   // 指标注册中心对象
    private Object metricRegistry;
+   // 健康检查注册中心对象
    private Object healthCheckRegistry;
+   // 健康检查相关属性配置
    private Properties healthCheckProperties;
-
+   // 保持连接活跃时间 毫秒
    private long keepaliveTime;
-
+   // 是否封印(配置完成后禁止修改)
    private volatile boolean sealed;
 
    /**
@@ -109,9 +157,9 @@ public class HikariConfig implements HikariConfigMXBean
     * <p>
     * {@link #HikariConfig(String propertyFileName)} can be similarly used
     * instead of using the system property
+    * 默认空参构造器 尝试读取JVM参数 找到配置文件
     */
-   public HikariConfig()
-   {
+   public HikariConfig() {
       dataSourceProperties = new Properties();
       healthCheckProperties = new Properties();
 
@@ -125,6 +173,7 @@ public class HikariConfig implements HikariConfigMXBean
       isAutoCommit = true;
       keepaliveTime = DEFAULT_KEEPALIVE_TIME;
 
+      //配置文件
       var systemProp = System.getProperty("hikaricp.configurationFile");
       if (systemProp != null) {
          loadProperties(systemProp);
@@ -133,11 +182,11 @@ public class HikariConfig implements HikariConfigMXBean
 
    /**
     * Construct a HikariConfig from the specified properties object.
+    * 使用传进来的Properties初始化
     *
     * @param properties the name of the property file
     */
-   public HikariConfig(Properties properties)
-   {
+   public HikariConfig(Properties properties) {
       this();
       PropertyElf.setTargetFromProperties(this, properties);
    }
@@ -146,11 +195,11 @@ public class HikariConfig implements HikariConfigMXBean
     * Construct a HikariConfig from the specified property file name.  <code>propertyFileName</code>
     * will first be treated as a path in the file-system, and if that fails the
     * Class.getResourceAsStream(propertyFileName) will be tried.
+    * 根据文件名 初始化
     *
     * @param propertyFileName the name of the property file
     */
-   public HikariConfig(String propertyFileName)
-   {
+   public HikariConfig(String propertyFileName) {
       this();
 
       loadProperties(propertyFileName);
@@ -160,116 +209,128 @@ public class HikariConfig implements HikariConfigMXBean
    //                       HikariConfigMXBean methods
    // ***********************************************************************
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public String getCatalog()
-   {
+   public String getCatalog() {
       return catalog;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setCatalog(String catalog)
-   {
+   public void setCatalog(String catalog) {
       this.catalog = catalog;
    }
 
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public long getConnectionTimeout()
-   {
+   public long getConnectionTimeout() {
       return connectionTimeout;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setConnectionTimeout(long connectionTimeoutMs)
-   {
+   public void setConnectionTimeout(long connectionTimeoutMs) {
       if (connectionTimeoutMs == 0) {
          this.connectionTimeout = Integer.MAX_VALUE;
-      }
-      else if (connectionTimeoutMs < SOFT_TIMEOUT_FLOOR) {
+      } else if (connectionTimeoutMs < SOFT_TIMEOUT_FLOOR) {
          throw new IllegalArgumentException("connectionTimeout cannot be less than " + SOFT_TIMEOUT_FLOOR + "ms");
-      }
-      else {
+      } else {
          this.connectionTimeout = connectionTimeoutMs;
       }
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public long getIdleTimeout()
-   {
+   public long getIdleTimeout() {
       return idleTimeout;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setIdleTimeout(long idleTimeoutMs)
-   {
+   public void setIdleTimeout(long idleTimeoutMs) {
       if (idleTimeoutMs < 0) {
          throw new IllegalArgumentException("idleTimeout cannot be negative");
       }
       this.idleTimeout = idleTimeoutMs;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public long getLeakDetectionThreshold()
-   {
+   public long getLeakDetectionThreshold() {
       return leakDetectionThreshold;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setLeakDetectionThreshold(long leakDetectionThresholdMs)
-   {
+   public void setLeakDetectionThreshold(long leakDetectionThresholdMs) {
       this.leakDetectionThreshold = leakDetectionThresholdMs;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public long getMaxLifetime()
-   {
+   public long getMaxLifetime() {
       return maxLifetime;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setMaxLifetime(long maxLifetimeMs)
-   {
+   public void setMaxLifetime(long maxLifetimeMs) {
       this.maxLifetime = maxLifetimeMs;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public int getMaximumPoolSize()
-   {
+   public int getMaximumPoolSize() {
       return maxPoolSize;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setMaximumPoolSize(int maxPoolSize)
-   {
+   public void setMaximumPoolSize(int maxPoolSize) {
       if (maxPoolSize < 1) {
          throw new IllegalArgumentException("maxPoolSize cannot be less than 1");
       }
       this.maxPoolSize = maxPoolSize;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public int getMinimumIdle()
-   {
+   public int getMinimumIdle() {
       return minIdle;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setMinimumIdle(int minIdle)
-   {
+   public void setMinimumIdle(int minIdle) {
       if (minIdle < 0) {
          throw new IllegalArgumentException("minimumIdle cannot be negative");
       }
@@ -278,20 +339,20 @@ public class HikariConfig implements HikariConfigMXBean
 
    /**
     * Get the default password to use for DataSource.getConnection(username, password) calls.
+    *
     * @return the password
     */
-   public String getPassword()
-   {
+   public String getPassword() {
       return credentials.get().getPassword();
    }
 
    /**
     * Set the default password to use for DataSource.getConnection(username, password) calls.
+    *
     * @param password the password
     */
    @Override
-   public void setPassword(String password)
-   {
+   public void setPassword(String password) {
       credentials.updateAndGet(current -> Credentials.of(current.getUsername(), password));
    }
 
@@ -300,8 +361,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the username
     */
-   public String getUsername()
-   {
+   public String getUsername() {
       return credentials.get().getUsername();
    }
 
@@ -311,8 +371,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @param username the username
     */
    @Override
-   public void setUsername(String username)
-   {
+   public void setUsername(String username) {
       credentials.updateAndGet(current -> Credentials.of(username, current.getPassword()));
    }
 
@@ -322,8 +381,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @param credentials the username and password pair
     */
    @Override
-   public void setCredentials(final Credentials credentials)
-   {
+   public void setCredentials(final Credentials credentials) {
       this.credentials.set(credentials);
    }
 
@@ -332,22 +390,23 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the username and password pair
     */
-   public Credentials getCredentials()
-   {
+   public Credentials getCredentials() {
       return credentials.get();
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public long getValidationTimeout()
-   {
+   public long getValidationTimeout() {
       return validationTimeout;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void setValidationTimeout(long validationTimeoutMs)
-   {
+   public void setValidationTimeout(long validationTimeoutMs) {
       if (validationTimeoutMs < SOFT_TIMEOUT_FLOOR) {
          throw new IllegalArgumentException("validationTimeout cannot be less than " + SOFT_TIMEOUT_FLOOR + "ms");
       }
@@ -364,8 +423,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the SQL query string, or null
     */
-   public String getConnectionTestQuery()
-   {
+   public String getConnectionTestQuery() {
       return connectionTestQuery;
    }
 
@@ -376,8 +434,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param connectionTestQuery a SQL query string
     */
-   public void setConnectionTestQuery(String connectionTestQuery)
-   {
+   public void setConnectionTestQuery(String connectionTestQuery) {
       checkIfSealed();
       this.connectionTestQuery = connectionTestQuery;
    }
@@ -388,8 +445,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the SQL to execute on new connections, or null
     */
-   public String getConnectionInitSql()
-   {
+   public String getConnectionInitSql() {
       return connectionInitSql;
    }
 
@@ -400,8 +456,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param connectionInitSql the SQL to execute on new connections
     */
-   public void setConnectionInitSql(String connectionInitSql)
-   {
+   public void setConnectionInitSql(String connectionInitSql) {
       checkIfSealed();
       this.connectionInitSql = connectionInitSql;
    }
@@ -412,8 +467,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the {@link DataSource} instance, or null
     */
-   public DataSource getDataSource()
-   {
+   public DataSource getDataSource() {
       return dataSource;
    }
 
@@ -423,8 +477,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param dataSource a specific {@link DataSource} to be wrapped by the pool
     */
-   public void setDataSource(DataSource dataSource)
-   {
+   public void setDataSource(DataSource dataSource) {
       checkIfSealed();
       this.dataSource = dataSource;
    }
@@ -434,8 +487,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the fully qualified name of the JDBC {@link DataSource} class
     */
-   public String getDataSourceClassName()
-   {
+   public String getDataSourceClassName() {
       return dataSourceClassName;
    }
 
@@ -444,8 +496,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param className the fully qualified name of the JDBC {@link DataSource} class
     */
-   public void setDataSourceClassName(String className)
-   {
+   public void setDataSourceClassName(String className) {
       checkIfSealed();
       this.dataSourceClassName = className;
    }
@@ -461,47 +512,44 @@ public class HikariConfig implements HikariConfigMXBean
     * be passed to the driver during {@link java.sql.Driver#connect(String, Properties)} calls.
     *
     * @param propertyName the name of the property
-    * @param value the value to be used by the DataSource/Driver
+    * @param value        the value to be used by the DataSource/Driver
     */
-   public void addDataSourceProperty(String propertyName, Object value)
-   {
+   public void addDataSourceProperty(String propertyName, Object value) {
       checkIfSealed();
       dataSourceProperties.put(propertyName, value);
    }
 
-   public String getDataSourceJNDI()
-   {
+   public String getDataSourceJNDI() {
       return this.dataSourceJndiName;
    }
 
-   public void setDataSourceJNDI(String jndiDataSource)
-   {
+   public void setDataSourceJNDI(String jndiDataSource) {
       checkIfSealed();
       this.dataSourceJndiName = jndiDataSource;
    }
 
-   public Properties getDataSourceProperties()
-   {
+   public Properties getDataSourceProperties() {
       return dataSourceProperties;
    }
 
-   public void setDataSourceProperties(Properties dsProperties)
-   {
+   public void setDataSourceProperties(Properties dsProperties) {
       checkIfSealed();
       dataSourceProperties.putAll(dsProperties);
    }
 
-   public String getDriverClassName()
-   {
+   public String getDriverClassName() {
       return driverClassName;
    }
 
-   public void setDriverClassName(String driverClassName)
-   {
+   public void setDriverClassName(String driverClassName) {
+      // 检查配置是否已封印 不允许修改
       checkIfSealed();
 
+      // 尝试通过当前线程上下文类加载器加载驱动类
       var driverClass = attemptFromContextLoader(driverClassName);
+
       try {
+         // 如果没找到，再用当前类的类加载器加载
          if (driverClass == null) {
             driverClass = this.getClass().getClassLoader().loadClass(driverClassName);
             LOGGER.debug("Driver class {} found in the HikariConfig class classloader {}", driverClassName, this.getClass().getClassLoader());
@@ -510,26 +558,26 @@ public class HikariConfig implements HikariConfigMXBean
          LOGGER.error("Failed to load driver class {} from HikariConfig class classloader {}", driverClassName, this.getClass().getClassLoader());
       }
 
+      // 如果还是没加载到 抛异常
       if (driverClass == null) {
          throw new RuntimeException("Failed to load driver class " + driverClassName + " in either of HikariConfig class loader or Thread context classloader");
       }
 
       try {
+         // 反射调用无参构造初始化驱动类 实际上是注册JDBC驱动
          driverClass.getConstructor().newInstance();
          this.driverClassName = driverClassName;
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
+         // 实例化失败 抛运行时异常
          throw new RuntimeException("Failed to instantiate class " + driverClassName, e);
       }
    }
 
-   public String getJdbcUrl()
-   {
+   public String getJdbcUrl() {
       return jdbcUrl;
    }
 
-   public void setJdbcUrl(String jdbcUrl)
-   {
+   public void setJdbcUrl(String jdbcUrl) {
       checkIfSealed();
       this.jdbcUrl = jdbcUrl;
    }
@@ -539,8 +587,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the default auto-commit behavior of connections
     */
-   public boolean isAutoCommit()
-   {
+   public boolean isAutoCommit() {
       return isAutoCommit;
    }
 
@@ -549,8 +596,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param isAutoCommit the desired auto-commit default for connections
     */
-   public void setAutoCommit(boolean isAutoCommit)
-   {
+   public void setAutoCommit(boolean isAutoCommit) {
       checkIfSealed();
       this.isAutoCommit = isAutoCommit;
    }
@@ -560,8 +606,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the pool suspension behavior
     */
-   public boolean isAllowPoolSuspension()
-   {
+   public boolean isAllowPoolSuspension() {
       return isAllowPoolSuspension;
    }
 
@@ -572,8 +617,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param isAllowPoolSuspension the desired pool suspension allowance
     */
-   public void setAllowPoolSuspension(boolean isAllowPoolSuspension)
-   {
+   public void setAllowPoolSuspension(boolean isAllowPoolSuspension) {
       checkIfSealed();
       this.isAllowPoolSuspension = isAllowPoolSuspension;
    }
@@ -585,8 +629,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @return the number of milliseconds before the pool initialization fails
     * @see HikariConfig#setInitializationFailTimeout(long)
     */
-   public long getInitializationFailTimeout()
-   {
+   public long getInitializationFailTimeout() {
       return initializationFailTimeout;
    }
 
@@ -619,12 +662,11 @@ public class HikariConfig implements HikariConfigMXBean
     * timeout is applied.  The default value is one millisecond.
     *
     * @param initializationFailTimeout the number of milliseconds before the
-    *        pool initialization fails, or 0 to validate connection setup but continue with
-    *        pool start, or less than zero to skip all initialization checks and start the
-    *        pool without delay.
+    *                                  pool initialization fails, or 0 to validate connection setup but continue with
+    *                                  pool start, or less than zero to skip all initialization checks and start the
+    *                                  pool without delay.
     */
-   public void setInitializationFailTimeout(long initializationFailTimeout)
-   {
+   public void setInitializationFailTimeout(long initializationFailTimeout) {
       checkIfSealed();
       this.initializationFailTimeout = initializationFailTimeout;
    }
@@ -635,8 +677,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return {@code true} if internal pool queries are isolated, {@code false} if not
     */
-   public boolean isIsolateInternalQueries()
-   {
+   public boolean isIsolateInternalQueries() {
       return isIsolateInternalQueries;
    }
 
@@ -646,19 +687,16 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param isolate {@code true} if internal pool queries should be isolated, {@code false} if not
     */
-   public void setIsolateInternalQueries(boolean isolate)
-   {
+   public void setIsolateInternalQueries(boolean isolate) {
       checkIfSealed();
       this.isIsolateInternalQueries = isolate;
    }
 
-   public MetricsTrackerFactory getMetricsTrackerFactory()
-   {
+   public MetricsTrackerFactory getMetricsTrackerFactory() {
       return metricsTrackerFactory;
    }
 
-   public void setMetricsTrackerFactory(MetricsTrackerFactory metricsTrackerFactory)
-   {
+   public void setMetricsTrackerFactory(MetricsTrackerFactory metricsTrackerFactory) {
       if (metricRegistry != null) {
          throw new IllegalStateException("cannot use setMetricsTrackerFactory() and setMetricRegistry() together");
       }
@@ -671,8 +709,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the MetricRegistry instance that will be used
     */
-   public Object getMetricRegistry()
-   {
+   public Object getMetricRegistry() {
       return metricRegistry;
    }
 
@@ -681,8 +718,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param metricRegistry the MetricRegistry instance to use
     */
-   public void setMetricRegistry(Object metricRegistry)
-   {
+   public void setMetricRegistry(Object metricRegistry) {
       if (metricsTrackerFactory != null) {
          throw new IllegalStateException("cannot use setMetricRegistry() and setMetricsTrackerFactory() together");
       }
@@ -691,8 +727,8 @@ public class HikariConfig implements HikariConfigMXBean
          metricRegistry = getObjectOrPerformJndiLookup(metricRegistry);
 
          if (!safeIsAssignableFrom(metricRegistry, "com.codahale.metrics.MetricRegistry")
-             && !(safeIsAssignableFrom(metricRegistry, "io.dropwizard.metrics5.MetricRegistry"))
-             && !(safeIsAssignableFrom(metricRegistry, "io.micrometer.core.instrument.MeterRegistry"))) {
+            && !(safeIsAssignableFrom(metricRegistry, "io.dropwizard.metrics5.MetricRegistry"))
+            && !(safeIsAssignableFrom(metricRegistry, "io.micrometer.core.instrument.MeterRegistry"))) {
             throw new IllegalArgumentException("Class must be instance of com.codahale.metrics.MetricRegistry, " +
                "io.dropwizard.metrics5.MetricRegistry, or io.micrometer.core.instrument.MeterRegistry");
          }
@@ -707,8 +743,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the HealthCheckRegistry instance that will be used
     */
-   public Object getHealthCheckRegistry()
-   {
+   public Object getHealthCheckRegistry() {
       return healthCheckRegistry;
    }
 
@@ -718,8 +753,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param healthCheckRegistry the HealthCheckRegistry to be used
     */
-   public void setHealthCheckRegistry(Object healthCheckRegistry)
-   {
+   public void setHealthCheckRegistry(Object healthCheckRegistry) {
       checkIfSealed();
 
       if (healthCheckRegistry != null) {
@@ -733,19 +767,16 @@ public class HikariConfig implements HikariConfigMXBean
       this.healthCheckRegistry = healthCheckRegistry;
    }
 
-   public Properties getHealthCheckProperties()
-   {
+   public Properties getHealthCheckProperties() {
       return healthCheckProperties;
    }
 
-   public void setHealthCheckProperties(Properties healthCheckProperties)
-   {
+   public void setHealthCheckProperties(Properties healthCheckProperties) {
       checkIfSealed();
       this.healthCheckProperties.putAll(healthCheckProperties);
    }
 
-   public void addHealthCheckProperty(String key, String value)
-   {
+   public void addHealthCheckProperty(String key, String value) {
       checkIfSealed();
       healthCheckProperties.setProperty(key, value);
    }
@@ -775,8 +806,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return {@code true} if the Connections in the pool are read-only, {@code false} if not
     */
-   public boolean isReadOnly()
-   {
+   public boolean isReadOnly() {
       return isReadOnly;
    }
 
@@ -785,8 +815,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param readOnly {@code true} if the Connections in the pool are read-only, {@code false} if not
     */
-   public void setReadOnly(boolean readOnly)
-   {
+   public void setReadOnly(boolean readOnly) {
       checkIfSealed();
       this.isReadOnly = readOnly;
    }
@@ -797,8 +826,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return {@code true} if HikariCP will register MXBeans, {@code false} if it will not
     */
-   public boolean isRegisterMbeans()
-   {
+   public boolean isRegisterMbeans() {
       return isRegisterMbeans;
    }
 
@@ -807,16 +835,16 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param register {@code true} if HikariCP should register MXBeans, {@code false} if it should not
     */
-   public void setRegisterMbeans(boolean register)
-   {
+   public void setRegisterMbeans(boolean register) {
       checkIfSealed();
       this.isRegisterMbeans = register;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public String getPoolName()
-   {
+   public String getPoolName() {
       return poolName;
    }
 
@@ -826,8 +854,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param poolName the name of the connection pool to use
     */
-   public void setPoolName(String poolName)
-   {
+   public void setPoolName(String poolName) {
       checkIfSealed();
       this.poolName = poolName;
    }
@@ -837,8 +864,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the executor
     */
-   public ScheduledExecutorService getScheduledExecutor()
-   {
+   public ScheduledExecutorService getScheduledExecutor() {
       return scheduledExecutor;
    }
 
@@ -847,14 +873,12 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param executor the ScheduledExecutorService
     */
-   public void setScheduledExecutor(ScheduledExecutorService executor)
-   {
+   public void setScheduledExecutor(ScheduledExecutorService executor) {
       checkIfSealed();
       this.scheduledExecutor = executor;
    }
 
-   public String getTransactionIsolation()
-   {
+   public String getTransactionIsolation() {
       return transactionIsolationName;
    }
 
@@ -863,8 +887,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the default schema name
     */
-   public String getSchema()
-   {
+   public String getSchema() {
       return schema;
    }
 
@@ -873,8 +896,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param schema the name of the default schema
     */
-   public void setSchema(String schema)
-   {
+   public void setSchema(String schema) {
       checkIfSealed();
       this.schema = schema;
    }
@@ -885,8 +907,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @return the user supplied SQLExceptionOverride class name
     * @see SQLExceptionOverride
     */
-   public String getExceptionOverrideClassName()
-   {
+   public String getExceptionOverrideClassName() {
       return this.exceptionOverrideClassName;
    }
 
@@ -896,8 +917,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @param exceptionOverrideClassName the user supplied SQLExceptionOverride class name
     * @see SQLExceptionOverride
     */
-   public void setExceptionOverrideClassName(String exceptionOverrideClassName)
-   {
+   public void setExceptionOverrideClassName(String exceptionOverrideClassName) {
       checkIfSealed();
 
       var overrideClass = attemptFromContextLoader(exceptionOverrideClassName);
@@ -921,8 +941,7 @@ public class HikariConfig implements HikariConfigMXBean
       try {
          this.exceptionOverride = (SQLExceptionOverride) overrideClass.getConstructor().newInstance();
          this.exceptionOverrideClassName = exceptionOverrideClassName;
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
          throw new RuntimeException("Failed to instantiate class " + exceptionOverrideClassName, e);
       }
    }
@@ -934,8 +953,7 @@ public class HikariConfig implements HikariConfigMXBean
     * @return the SQLExceptionOverride instance, or null if {@link #setExceptionOverrideClassName(String)} is not called
     * @see SQLExceptionOverride
     */
-   public SQLExceptionOverride getExceptionOverride()
-   {
+   public SQLExceptionOverride getExceptionOverride() {
       return this.exceptionOverride;
    }
 
@@ -957,8 +975,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param isolationLevel the name of the isolation level
     */
-   public void setTransactionIsolation(String isolationLevel)
-   {
+   public void setTransactionIsolation(String isolationLevel) {
       checkIfSealed();
       this.transactionIsolationName = isolationLevel;
    }
@@ -968,8 +985,7 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @return the thread factory (may be null, in which case the default thread factory is used)
     */
-   public ThreadFactory getThreadFactory()
-   {
+   public ThreadFactory getThreadFactory() {
       return threadFactory;
    }
 
@@ -978,14 +994,12 @@ public class HikariConfig implements HikariConfigMXBean
     *
     * @param threadFactory the thread factory (setting to null causes the default thread factory to be used)
     */
-   public void setThreadFactory(ThreadFactory threadFactory)
-   {
+   public void setThreadFactory(ThreadFactory threadFactory) {
       checkIfSealed();
       this.threadFactory = threadFactory;
    }
 
-   void seal()
-   {
+   void seal() {
       this.sealed = true;
    }
 
@@ -995,18 +1009,19 @@ public class HikariConfig implements HikariConfigMXBean
     * @param other Other {@link HikariConfig} to copy the state to.
     */
    @SuppressWarnings({"rawtypes", "unchecked"})
-   public void copyStateTo(HikariConfig other)
-   {
+   public void copyStateTo(HikariConfig other) {
+      //反射 设置字段
       for (var field : HikariConfig.class.getDeclaredFields()) {
          try {
+            //跳过final字段
             if (!Modifier.isFinal(field.getModifiers())) {
                field.setAccessible(true);
                field.set(other, field.get(this));
             } else if (field.getType().isAssignableFrom(AtomicReference.class)) {
+               //原子引用使用特殊处理
                ((AtomicReference) field.get(other)).set(((AtomicReference) field.get(this)).get());
             }
-         }
-         catch (Exception e) {
+         } catch (Exception e) {
             throw new RuntimeException("Failed to copy HikariConfig state: " + e.getMessage(), e);
          }
       }
@@ -1034,13 +1049,12 @@ public class HikariConfig implements HikariConfigMXBean
       return null;
    }
 
+   //校验参数
    @SuppressWarnings("StatementWithEmptyBody")
-   public void validate()
-   {
+   public void validate() {
       if (poolName == null) {
          poolName = generatePoolName();
-      }
-      else if (isRegisterMbeans && poolName.contains(":")) {
+      } else if (isRegisterMbeans && poolName.contains(":")) {
          throw new IllegalArgumentException("poolName cannot contain ':' when used with JMX");
       }
 
@@ -1060,26 +1074,21 @@ public class HikariConfig implements HikariConfigMXBean
          if (dataSourceClassName != null) {
             LOGGER.warn("{} - using dataSource and ignoring dataSourceClassName.", poolName);
          }
-      }
-      else if (dataSourceClassName != null) {
+      } else if (dataSourceClassName != null) {
          if (driverClassName != null) {
             LOGGER.error("{} - cannot use driverClassName and dataSourceClassName together.", poolName);
             // NOTE: This exception text is referenced by a Spring Boot FailureAnalyzer, it should not be
             // changed without first notifying the Spring Boot developers.
             throw new IllegalStateException("cannot use driverClassName and dataSourceClassName together.");
-         }
-         else if (jdbcUrl != null) {
+         } else if (jdbcUrl != null) {
             LOGGER.warn("{} - using dataSourceClassName and ignoring jdbcUrl.", poolName);
          }
-      }
-      else if (jdbcUrl != null || dataSourceJndiName != null) {
+      } else if (jdbcUrl != null || dataSourceJndiName != null) {
          // ok
-      }
-      else if (driverClassName != null) {
+      } else if (driverClassName != null) {
          LOGGER.error("{} - jdbcUrl is required with driverClassName.", poolName);
          throw new IllegalArgumentException("jdbcUrl is required with driverClassName.");
-      }
-      else {
+      } else {
          LOGGER.error("{} - dataSource or dataSourceClassName or jdbcUrl is required.", poolName);
          throw new IllegalArgumentException("dataSource or dataSourceClassName or jdbcUrl is required.");
       }
@@ -1091,8 +1100,7 @@ public class HikariConfig implements HikariConfigMXBean
       }
    }
 
-   private void validateNumerics()
-   {
+   private void validateNumerics() {
       if (maxLifetime != 0 && maxLifetime < SECONDS.toMillis(30)) {
          LOGGER.warn("{} - maxLifetime is less than 30000ms, setting to default {}ms.", poolName, MAX_LIFETIME);
          maxLifetime = MAX_LIFETIME;
@@ -1134,23 +1142,21 @@ public class HikariConfig implements HikariConfigMXBean
       if (idleTimeout + SECONDS.toMillis(1) > maxLifetime && maxLifetime > 0 && minIdle < maxPoolSize) {
          LOGGER.warn("{} - idleTimeout is close to or more than maxLifetime, disabling it.", poolName);
          idleTimeout = 0;
-      }
-      else if (idleTimeout != 0 && idleTimeout < SECONDS.toMillis(10) && minIdle < maxPoolSize) {
+      } else if (idleTimeout != 0 && idleTimeout < SECONDS.toMillis(10) && minIdle < maxPoolSize) {
          LOGGER.warn("{} - idleTimeout is less than 10000ms, setting to default {}ms.", poolName, IDLE_TIMEOUT);
          idleTimeout = IDLE_TIMEOUT;
-      }
-      else  if (idleTimeout != IDLE_TIMEOUT && idleTimeout != 0 && minIdle == maxPoolSize) {
+      } else if (idleTimeout != IDLE_TIMEOUT && idleTimeout != 0 && minIdle == maxPoolSize) {
          LOGGER.warn("{} - idleTimeout has been set but has no effect because the pool is operating as a fixed size pool.", poolName);
       }
    }
 
-   private void checkIfSealed()
-   {
-      if (sealed) throw new IllegalStateException("The configuration of the pool is sealed once started. Use HikariConfigMXBean for runtime changes.");
+   private void checkIfSealed() {
+      if (sealed)
+         throw new IllegalStateException("The configuration of the pool is sealed once started. Use HikariConfigMXBean for runtime changes.");
    }
 
-   private void logConfiguration()
-   {
+   //打印配置
+   private void logConfiguration() {
       LOGGER.debug("{} - configuration:", poolName);
       final var propertyNames = new TreeSet<>(PropertyElf.getPropertyNames(HikariConfig.class));
       for (var prop : propertyNames) {
@@ -1164,46 +1170,37 @@ public class HikariConfig implements HikariConfigMXBean
 
             if ("initializationFailTimeout".equals(prop) && initializationFailTimeout == Long.MAX_VALUE) {
                value = "infinite";
-            }
-            else if ("transactionIsolation".equals(prop) && transactionIsolationName == null) {
+            } else if ("transactionIsolation".equals(prop) && transactionIsolationName == null) {
                value = "default";
-            }
-            else if (prop.matches("scheduledExecutorService|threadFactory") && value == null) {
+            } else if (prop.matches("scheduledExecutorService|threadFactory") && value == null) {
                value = "internal";
-            }
-            else if (prop.contains("jdbcUrl") && value instanceof String) {
+            } else if (prop.contains("jdbcUrl") && value instanceof String) {
                value = maskPasswordInJdbcUrl((String) value);
-            }
-            else if (prop.contains("password")) {
+            } else if (prop.contains("password")) {
                value = "<masked>";
-            }
-            else if (value instanceof String) {
+            } else if (value instanceof String) {
                value = "\"" + value + "\""; // quote to see lead/trailing spaces is any
-            }
-            else if (value == null) {
+            } else if (value == null) {
                value = "none";
             }
             LOGGER.debug("{}{}", (prop + "................................................").substring(0, 32), value);
-         }
-         catch (Exception e) {
+         } catch (Exception e) {
             // continue
          }
       }
    }
 
-   private void loadProperties(String propertyFileName)
-   {
+   //根据文件名 设置配置属性
+   private void loadProperties(String propertyFileName) {
       try (final var is = openPropertiesInputStream(propertyFileName)) {
          if (is != null) {
             var props = new Properties();
             props.load(is);
             PropertyElf.setTargetFromProperties(this, props);
-         }
-         else {
+         } else {
             throw new IllegalArgumentException("Cannot find property file: " + propertyFileName);
          }
-      }
-      catch (IOException io) {
+      } catch (IOException io) {
          throw new RuntimeException("Failed to read property file", io);
       }
    }
@@ -1215,13 +1212,12 @@ public class HikariConfig implements HikariConfigMXBean
       }
       var propertiesInputStream = this.getClass().getResourceAsStream(propertyFileName);
       if (propertiesInputStream == null) {
-        propertiesInputStream = this.getClass().getClassLoader().getResourceAsStream(propertyFileName);
+         propertiesInputStream = this.getClass().getClassLoader().getResourceAsStream(propertyFileName);
       }
       return propertiesInputStream;
    }
 
-   private String generatePoolName()
-   {
+   private String generatePoolName() {
       final var prefix = "HikariPool-";
       try {
          // Pool number is global to the VM to avoid overlapping pool numbers in classloader scoped environments
@@ -1246,17 +1242,19 @@ public class HikariConfig implements HikariConfigMXBean
       }
    }
 
-   private Object getObjectOrPerformJndiLookup(Object object)
-   {
+   //
+   private Object getObjectOrPerformJndiLookup(Object object) {
+      // 如果传入的是字符串 认为是JNDI名称，尝试从JNDI查找对应对象
       if (object instanceof String) {
          try {
             var initCtx = new InitialContext();
             return initCtx.lookup((String) object);
-         }
-         catch (NamingException e) {
+         } catch (NamingException e) {
+            // 查找失败抛非法参数异常包裹NamingException
             throw new IllegalArgumentException(e);
          }
       }
+      // 如果不是字符串 直接返回原对象
       return object;
    }
 }

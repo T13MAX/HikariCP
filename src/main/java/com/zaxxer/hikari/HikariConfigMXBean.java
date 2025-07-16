@@ -20,11 +20,11 @@ import com.zaxxer.hikari.util.Credentials;
 
 /**
  * The javax.management MBean for a Hikari pool configuration.
+ * JMX管理接口 通过JMX看HikariCP的配置信息
  *
  * @author Brett Wooldridge
  */
-public interface HikariConfigMXBean
-{
+public interface HikariConfigMXBean {
    /**
     * Get the maximum number of milliseconds that a client will wait for a connection from the pool. If this
     * time is exceeded without a connection becoming available, a SQLException will be thrown from

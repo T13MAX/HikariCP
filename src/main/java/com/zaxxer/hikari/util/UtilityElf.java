@@ -24,29 +24,23 @@ import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
- *
  * @author Brett Wooldridge
  */
-public final class UtilityElf
-{
+public final class UtilityElf {
    private static final Pattern PASSWORD_MASKING_PATTERN = Pattern.compile("([?&;][^&#;=]*[pP]assword=)[^&#;]*");
 
-   private UtilityElf()
-   {
+   private UtilityElf() {
       // non-constructable
    }
 
-   public static String maskPasswordInJdbcUrl(String jdbcUrl)
-   {
+   public static String maskPasswordInJdbcUrl(String jdbcUrl) {
       return PASSWORD_MASKING_PATTERN.matcher(jdbcUrl).replaceAll("$1<masked>");
    }
 
    /**
-    *
     * @return null if string is null or empty, , trimmed string otherwise
-   */
-   public static String getNullIfEmpty(final String text)
-   {
+    */
+   public static String getNullIfEmpty(final String text) {
       return text == null ? null : text.trim().isEmpty() ? null : text.trim();
    }
 
@@ -55,12 +49,10 @@ public final class UtilityElf
     *
     * @param millis the number of milliseconds to sleep
     */
-   public static void quietlySleep(final long millis)
-   {
+   public static void quietlySleep(final long millis) {
       try {
          Thread.sleep(millis);
-      }
-      catch (InterruptedException e) {
+      } catch (InterruptedException e) {
          // I said be quiet!
          currentThread().interrupt();
       }
@@ -68,7 +60,8 @@ public final class UtilityElf
 
    /**
     * Checks whether an object is an instance of given type without throwing exception when the class is not loaded.
-    * @param obj the object to check
+    *
+    * @param obj       the object to check
     * @param className String class
     * @return true if object is assignable from the type, false otherwise or when the class cannot be loaded
     */
@@ -85,14 +78,13 @@ public final class UtilityElf
     * Create and instance of the specified class using the constructor matching the specified
     * arguments.
     *
-    * @param <T> the class type
+    * @param <T>       the class type
     * @param className the name of the class to instantiate
-    * @param clazz a class to cast the result as
-    * @param args arguments to a constructor
+    * @param clazz     a class to cast the result as
+    * @param args      arguments to a constructor
     * @return an instance of the specified class
     */
-   public static <T> T createInstance(final String className, final Class<T> clazz, final Object... args)
-   {
+   public static <T> T createInstance(final String className, final Class<T> clazz, final Object... args) {
       if (className == null) {
          return null;
       }
@@ -111,8 +103,7 @@ public final class UtilityElf
          }
          var constructor = loaded.getConstructor(argClasses);
          return clazz.cast(constructor.newInstance(args));
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
          throw new RuntimeException(e);
       }
    }
@@ -120,28 +111,26 @@ public final class UtilityElf
    /**
     * Create a ThreadPoolExecutor.
     *
-    * @param queueSize the queue size
-    * @param threadName the thread name
+    * @param queueSize     the queue size
+    * @param threadName    the thread name
     * @param threadFactory an optional ThreadFactory
-    * @param policy the RejectedExecutionHandler policy
+    * @param policy        the RejectedExecutionHandler policy
     * @return a ThreadPoolExecutor
     */
-   public static ThreadPoolExecutor createThreadPoolExecutor(final int queueSize, final String threadName, ThreadFactory threadFactory, final RejectedExecutionHandler policy)
-   {
+   public static ThreadPoolExecutor createThreadPoolExecutor(final int queueSize, final String threadName, ThreadFactory threadFactory, final RejectedExecutionHandler policy) {
       return createThreadPoolExecutor(new LinkedBlockingQueue<>(queueSize), threadName, threadFactory, policy);
    }
 
    /**
     * Create a ThreadPoolExecutor.
     *
-    * @param queue the BlockingQueue to use
-    * @param threadName the thread name
+    * @param queue         the BlockingQueue to use
+    * @param threadName    the thread name
     * @param threadFactory an optional ThreadFactory
-    * @param policy the RejectedExecutionHandler policy
+    * @param policy        the RejectedExecutionHandler policy
     * @return a ThreadPoolExecutor
     */
-   public static ThreadPoolExecutor createThreadPoolExecutor(final BlockingQueue<Runnable> queue, final String threadName, ThreadFactory threadFactory, final RejectedExecutionHandler policy)
-   {
+   public static ThreadPoolExecutor createThreadPoolExecutor(final BlockingQueue<Runnable> queue, final String threadName, ThreadFactory threadFactory, final RejectedExecutionHandler policy) {
       if (threadFactory == null) {
          threadFactory = new DefaultThreadFactory(threadName);
       }
@@ -161,8 +150,7 @@ public final class UtilityElf
     * @param transactionIsolationName the name of the transaction isolation level
     * @return the int value of the isolation level or -1
     */
-   public static int getTransactionIsolation(final String transactionIsolationName)
-   {
+   public static int getTransactionIsolation(final String transactionIsolationName) {
       if (transactionIsolationName != null) {
          try {
             // use the english locale to avoid the infamous turkish locale bug
@@ -179,8 +167,7 @@ public final class UtilityElf
                }
 
                throw new IllegalArgumentException("Invalid transaction isolation value: " + transactionIsolationName);
-            }
-            catch (NumberFormatException nfe) {
+            } catch (NumberFormatException nfe) {
                throw new IllegalArgumentException("Invalid transaction isolation value: " + transactionIsolationName, nfe);
             }
          }
@@ -189,15 +176,13 @@ public final class UtilityElf
       return -1;
    }
 
-   public static class CustomDiscardPolicy implements RejectedExecutionHandler
-   {
+   public static class CustomDiscardPolicy implements RejectedExecutionHandler {
       @Override
       public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
       }
    }
 
-   public static final class DefaultThreadFactory implements ThreadFactory
-   {
+   public static final class DefaultThreadFactory implements ThreadFactory {
       private final String threadName;
       private final boolean daemon;
 
