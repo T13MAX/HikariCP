@@ -24,65 +24,68 @@ import java.util.concurrent.Semaphore;
  * This class implements a lock that can be used to suspend and resume the pool.  It
  * also provides a faux implementation that is used when the feature is disabled that
  * hopefully gets fully "optimized away" by the JIT.
+ * 轻量级锁
+ * 用于支持连接池的 suspend 和 resume 功能
+ * 控制是否允许获取连接
  *
  * @author Brett Wooldridge
  */
-public class SuspendResumeLock
-{
+public class SuspendResumeLock {
+
+   //假锁
    public static final SuspendResumeLock FAUX_LOCK = new SuspendResumeLock(false) {
       @Override
-      public void acquire() {}
+      public void acquire() {
+      }
 
       @Override
-      public void release() {}
+      public void release() {
+      }
 
       @Override
-      public void suspend() {}
+      public void suspend() {
+      }
 
       @Override
-      public void resume() {}
+      public void resume() {
+      }
    };
 
+   //控制等待连接线程的并发唤醒
    private static final int MAX_PERMITS = 10000;
+   //以前是AtomicInteger 后来改成信号量了
    private final Semaphore acquisitionSemaphore;
 
    /**
     * Default constructor
     */
-   public SuspendResumeLock()
-   {
+   public SuspendResumeLock() {
       this(true);
    }
 
-   private SuspendResumeLock(final boolean createSemaphore)
-   {
+   private SuspendResumeLock(final boolean createSemaphore) {
       acquisitionSemaphore = (createSemaphore ? new Semaphore(MAX_PERMITS, true) : null);
    }
 
-   public void acquire() throws SQLException
-   {
+   public void acquire() throws SQLException {
       if (acquisitionSemaphore.tryAcquire()) {
          return;
-      }
-      else if (Boolean.getBoolean("com.zaxxer.hikari.throwIfSuspended")) {
+      } else if (Boolean.getBoolean("com.zaxxer.hikari.throwIfSuspended")) {
          throw new SQLTransientException("The pool is currently suspended and configured to throw exceptions upon acquisition");
       }
 
       acquisitionSemaphore.acquireUninterruptibly();
    }
 
-   public void release()
-   {
+   public void release() {
       acquisitionSemaphore.release();
    }
 
-   public void suspend()
-   {
+   public void suspend() {
       acquisitionSemaphore.acquireUninterruptibly(MAX_PERMITS);
    }
 
-   public void resume()
-   {
+   public void resume() {
       acquisitionSemaphore.release(MAX_PERMITS);
    }
 }

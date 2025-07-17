@@ -52,12 +52,11 @@ import static java.util.concurrent.locks.LockSupport.parkNanos;
  * "requite" borrowed objects otherwise a memory leak will result.  Only
  * the "remove" method can completely remove an object from the bag.
  *
- * @author Brett Wooldridge
- *
  * @param <T> the templated type to store in the bag
+ * @author Brett Wooldridge
  */
-public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseable
-{
+public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseable {
+
    private static final Logger LOGGER = LoggerFactory.getLogger(ConcurrentBag.class);
 
    private final CopyOnWriteArrayList<T> sharedList;
@@ -70,20 +69,20 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
 
    private final SynchronousQueue<T> handoffQueue;
 
-   public interface IConcurrentBagEntry
-   {
+   public interface IConcurrentBagEntry {
       int STATE_NOT_IN_USE = 0;
       int STATE_IN_USE = 1;
       int STATE_REMOVED = -1;
       int STATE_RESERVED = -2;
 
       boolean compareAndSet(int expectState, int newState);
+
       void setState(int newState);
+
       int getState();
    }
 
-   public interface IBagStateListener
-   {
+   public interface IBagStateListener {
       void addBagItem(int waiting);
    }
 
@@ -92,8 +91,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     *
     * @param listener the IBagStateListener to attach to this bag
     */
-   public ConcurrentBag(final IBagStateListener listener)
-   {
+   public ConcurrentBag(final IBagStateListener listener) {
       this.listener = listener;
       this.useWeakThreadLocals = useWeakThreadLocals();
 
@@ -109,19 +107,17 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * The method will borrow a BagEntry from the bag, blocking for the
     * specified timeout if none are available.
     *
-    * @param timeout how long to wait before giving up, in units of unit
+    * @param timeout  how long to wait before giving up, in units of unit
     * @param timeUnit a <code>TimeUnit</code> determining how to interpret the timeout parameter
     * @return a borrowed instance from the bag or null if a timeout occurs
     * @throws InterruptedException if interrupted while waiting
     */
-   public T borrow(long timeout, final TimeUnit timeUnit) throws InterruptedException
-   {
+   public T borrow(long timeout, final TimeUnit timeUnit) throws InterruptedException {
       // Try the thread-local list first
       final var list = threadLocalList.get();
       for (var i = list.size() - 1; i >= 0; i--) {
          final var entry = list.remove(i);
-         @SuppressWarnings("unchecked")
-         final T bagEntry = useWeakThreadLocals ? ((WeakReference<T>) entry).get() : (T) entry;
+         @SuppressWarnings("unchecked") final T bagEntry = useWeakThreadLocals ? ((WeakReference<T>) entry).get() : (T) entry;
          if (bagEntry != null && bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
             return bagEntry;
          }
@@ -154,8 +150,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
          } while (timeout > 10_000);
 
          return null;
-      }
-      finally {
+      } finally {
          waiters.decrementAndGet();
       }
    }
@@ -166,21 +161,18 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * in a memory leak.
     *
     * @param bagEntry the value to return to the bag
-    * @throws NullPointerException if value is null
+    * @throws NullPointerException  if value is null
     * @throws IllegalStateException if the bagEntry was not borrowed from the bag
     */
-   public void requite(final T bagEntry)
-   {
+   public void requite(final T bagEntry) {
       bagEntry.setState(STATE_NOT_IN_USE);
 
       for (var i = 0; waiters.get() > 0; i++) {
          if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {
             return;
-         }
-         else if ((i & 0xff) == 0xff) {
+         } else if ((i & 0xff) == 0xff) {
             parkNanos(MICROSECONDS.toNanos(10));
-         }
-         else {
+         } else {
             Thread.yield();
          }
       }
@@ -196,8 +188,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     *
     * @param bagEntry an object to add to the bag
     */
-   public void add(final T bagEntry)
-   {
+   public void add(final T bagEntry) {
       if (closed) {
          LOGGER.info("ConcurrentBag has been closed, ignoring add()");
          throw new IllegalStateException("ConcurrentBag has been closed, ignoring add()");
@@ -218,10 +209,9 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param bagEntry the value to remove
     * @return true if the entry was removed, false otherwise
     * @throws IllegalStateException if an attempt is made to remove an object
-    *         from the bag that was not borrowed or reserved first
+    *                               from the bag that was not borrowed or reserved first
     */
-   public boolean remove(final T bagEntry)
-   {
+   public boolean remove(final T bagEntry) {
       if (!bagEntry.compareAndSet(STATE_IN_USE, STATE_REMOVED) && !bagEntry.compareAndSet(STATE_RESERVED, STATE_REMOVED) && !closed) {
          LOGGER.warn("Attempt to remove an object from the bag that was not borrowed or reserved: {}", bagEntry);
          return false;
@@ -241,8 +231,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * Close the bag to further adds.
     */
    @Override
-   public void close()
-   {
+   public void close() {
       closed = true;
    }
 
@@ -255,8 +244,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param state one of the {@link IConcurrentBagEntry} states
     * @return a possibly empty list of objects having the state specified
     */
-   public List<T> values(final int state)
-   {
+   public List<T> values(final int state) {
       final var list = sharedList.stream().filter(e -> e.getState() == state).collect(Collectors.toList());
       Collections.reverse(list);
       return list;
@@ -271,8 +259,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @return a possibly empty list of (all) bag items
     */
    @SuppressWarnings("unchecked")
-   public List<T> values()
-   {
+   public List<T> values() {
       return (List<T>) sharedList.clone();
    }
 
@@ -288,8 +275,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param bagEntry the item to reserve
     * @return true if the item was able to be reserved, false otherwise
     */
-   public boolean reserve(final T bagEntry)
-   {
+   public boolean reserve(final T bagEntry) {
       return bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_RESERVED);
    }
 
@@ -300,15 +286,13 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param bagEntry the item to unreserve
     */
    @SuppressWarnings("SpellCheckingInspection")
-   public void unreserve(final T bagEntry)
-   {
+   public void unreserve(final T bagEntry) {
       if (bagEntry.compareAndSet(STATE_RESERVED, STATE_NOT_IN_USE)) {
          // spin until a thread takes it or none are waiting
          while (waiters.get() > 0 && bagEntry.getState() == STATE_NOT_IN_USE && !handoffQueue.offer(bagEntry)) {
             Thread.yield();
          }
-      }
-      else {
+      } else {
          LOGGER.warn("Attempt to relinquish an object to the bag that was not reserved: {}", bagEntry);
       }
    }
@@ -319,8 +303,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     *
     * @return the number of threads waiting for items from the bag
     */
-   public int getWaitingThreadCount()
-   {
+   public int getWaitingThreadCount() {
       return waiters.get();
    }
 
@@ -330,8 +313,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param state the state of the items to count
     * @return a count of how many items in the bag are in the specified state
     */
-   public int getCount(final int state)
-   {
+   public int getCount(final int state) {
       var count = 0;
       for (var e : sharedList) {
          if (e.getState() == state) {
@@ -341,8 +323,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       return count;
    }
 
-   public int[] getStateCounts()
-   {
+   public int[] getStateCounts() {
       final var states = new int[6];
       for (var e : sharedList) {
          ++states[e.getState()];
@@ -358,13 +339,11 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     *
     * @return the number of items in the bag
     */
-   public int size()
-   {
+   public int size() {
       return sharedList.size();
    }
 
-   public void dumpState()
-   {
+   public void dumpState() {
       sharedList.forEach(entry -> LOGGER.info(entry.toString()));
    }
 
@@ -375,16 +354,14 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     *
     * @return true if we should use WeakReferences in our ThreadLocals, false otherwise
     */
-   private boolean useWeakThreadLocals()
-   {
+   private boolean useWeakThreadLocals() {
       try {
          if (System.getProperty("com.zaxxer.hikari.useWeakReferences") != null) {   // undocumented manual override of WeakReference behavior
             return Boolean.getBoolean("com.zaxxer.hikari.useWeakReferences");
          }
 
          return getClass().getClassLoader() != ClassLoader.getSystemClassLoader();
-      }
-      catch (SecurityException se) {
+      } catch (SecurityException se) {
          return true;
       }
    }

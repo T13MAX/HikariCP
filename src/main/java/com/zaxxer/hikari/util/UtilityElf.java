@@ -53,7 +53,7 @@ public final class UtilityElf {
       try {
          Thread.sleep(millis);
       } catch (InterruptedException e) {
-         // I said be quiet!
+         // I said be quiet! (是 是 您说的是)
          currentThread().interrupt();
       }
    }
