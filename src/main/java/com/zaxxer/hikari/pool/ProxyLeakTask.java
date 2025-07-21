@@ -26,11 +26,11 @@ import org.slf4j.LoggerFactory;
 /**
  * A Runnable that is scheduled in the future to report leaks.  The ScheduledFuture is
  * cancelled if the connection is closed before the leak time expires.
+ * 检测泄漏的任务
  *
  * @author Brett Wooldridge
  */
-class ProxyLeakTask implements Runnable
-{
+class ProxyLeakTask implements Runnable {
    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyLeakTask.class);
    static final ProxyLeakTask NO_LEAK;
 
@@ -40,40 +40,40 @@ class ProxyLeakTask implements Runnable
    private String threadName;
    private boolean isLeaked;
 
-   static
-   {
+   static {
       NO_LEAK = new ProxyLeakTask() {
          @Override
-         void schedule(ScheduledExecutorService executorService, long leakDetectionThreshold) {}
+         void schedule(ScheduledExecutorService executorService, long leakDetectionThreshold) {
+         }
 
          @Override
-         public void run() {}
+         public void run() {
+         }
 
          @Override
-         public void cancel() {}
+         public void cancel() {
+         }
       };
    }
 
-   ProxyLeakTask(final PoolEntry poolEntry)
-   {
+   ProxyLeakTask(final PoolEntry poolEntry) {
       this.exception = new Exception("Apparent connection leak detected");
       this.threadName = Thread.currentThread().getName();
       this.connectionName = poolEntry.connection.toString();
    }
 
-   private ProxyLeakTask()
-   {
+   private ProxyLeakTask() {
    }
 
-   void schedule(ScheduledExecutorService executorService, long leakDetectionThreshold)
-   {
+   void schedule(ScheduledExecutorService executorService, long leakDetectionThreshold) {
       scheduledFuture = executorService.schedule(this, leakDetectionThreshold, TimeUnit.MILLISECONDS);
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void run()
-   {
+   public void run() {
       isLeaked = true;
 
       final var stackTrace = exception.getStackTrace();
@@ -85,8 +85,7 @@ class ProxyLeakTask implements Runnable
       LOGGER.warn("Connection leak detection triggered for {} on thread {}, stack trace follows", connectionName, threadName, exception);
    }
 
-   void cancel()
-   {
+   void cancel() {
       scheduledFuture.cancel(false);
       if (isLeaked) {
          LOGGER.info("Previously reported leaked connection {} on thread {} was returned to the pool (unleaked)", connectionName, threadName);

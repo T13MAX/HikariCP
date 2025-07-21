@@ -159,6 +159,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * This method will return a borrowed object to the bag.  Objects
     * that are borrowed from the bag but never "requited" will result
     * in a memory leak.
+    * 返还链接
     *
     * @param bagEntry the value to return to the bag
     * @throws NullPointerException  if value is null
@@ -315,6 +316,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     */
    public int getCount(final int state) {
       var count = 0;
+      //遍历啊...
       for (var e : sharedList) {
          if (e.getState() == state) {
             count++;
