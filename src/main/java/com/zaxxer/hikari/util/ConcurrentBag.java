@@ -51,6 +51,9 @@ import static java.util.concurrent.locks.LockSupport.parkNanos;
  * even if the reference is abandoned.  Thus care must be taken to
  * "requite" borrowed objects otherwise a memory leak will result.  Only
  * the "remove" method can completely remove an object from the bag.
+ * 并发Bag 优于LinkedBlockingQueue和LinkedTransferQueue
+ * 使用ThreadLocal 避免锁 使用了AQS
+ * 注意gc 内存泄漏
  *
  * @param <T> the templated type to store in the bag
  * @author Brett Wooldridge
@@ -59,12 +62,17 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
 
    private static final Logger LOGGER = LoggerFactory.getLogger(ConcurrentBag.class);
 
+   //存储所有资源的主列表
    private final CopyOnWriteArrayList<T> sharedList;
+   //是否使用弱引用的ThreadLocal
    private final boolean useWeakThreadLocals;
-
+   //线程私有缓存的资源列表 减少竞争
    private final ThreadLocal<List<Object>> threadLocalList;
+   //状态监听器 通常用于触发新建连接
    private final IBagStateListener listener;
+   //正在等待资源的线程数量
    private final AtomicInteger waiters;
+   //池是否已关闭
    private volatile boolean closed;
 
    private final SynchronousQueue<T> handoffQueue;
@@ -82,6 +90,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       int getState();
    }
 
+   //状态监听器
    public interface IBagStateListener {
       void addBagItem(int waiting);
    }
@@ -95,6 +104,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       this.listener = listener;
       this.useWeakThreadLocals = useWeakThreadLocals();
 
+      //不存储元素的队列 put必须有一个take
       this.handoffQueue = new SynchronousQueue<>(true);
       this.waiters = new AtomicInteger();
       this.sharedList = new CopyOnWriteArrayList<>();
@@ -124,23 +134,28 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       }
 
       // Otherwise, scan the shared list ... then poll the handoff queue
+      //否则 扫描共享列表
       final var waiting = waiters.incrementAndGet();
       try {
          for (T bagEntry : sharedList) {
+            //抢占使用权
             if (bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
                // If we may have stolen another waiter's connection, request another bag add.
                if (waiting > 1) {
+                  //等待者大于1 通知增加
                   listener.addBagItem(waiting - 1);
                }
                return bagEntry;
             }
          }
 
+         //添加通知
          listener.addBagItem(waiting);
 
          timeout = timeUnit.toNanos(timeout);
          do {
             final var start = currentTime();
+            //阻塞等待别人归还连接
             final T bagEntry = handoffQueue.poll(timeout, NANOSECONDS);
             if (bagEntry == null || bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
                return bagEntry;
@@ -168,6 +183,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    public void requite(final T bagEntry) {
       bagEntry.setState(STATE_NOT_IN_USE);
 
+      //有等待者就直接给他
       for (var i = 0; waiters.get() > 0; i++) {
          if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {
             return;
@@ -178,6 +194,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
          }
       }
 
+      //放回list
       final var threadLocalEntries = this.threadLocalList.get();
       if (threadLocalEntries.size() < 16) {
          threadLocalEntries.add(useWeakThreadLocals ? new WeakReference<>(bagEntry) : bagEntry);
@@ -190,6 +207,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * @param bagEntry an object to add to the bag
     */
    public void add(final T bagEntry) {
+
       if (closed) {
          LOGGER.info("ConcurrentBag has been closed, ignoring add()");
          throw new IllegalStateException("ConcurrentBag has been closed, ignoring add()");
@@ -355,6 +373,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * Determine whether to use WeakReferences based on whether there is a
     * custom ClassLoader implementation sitting between this class and the
     * System ClassLoader.
+    * 是否使用弱引用ThreadLocal
     *
     * @return true if we should use WeakReferences in our ThreadLocals, false otherwise
     */
