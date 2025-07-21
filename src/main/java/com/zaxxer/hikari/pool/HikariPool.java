@@ -729,11 +729,15 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
     * @return a SQLException to be thrown from {@link #getConnection()}
     */
    private SQLException createTimeoutException(long startTime) {
+
+      //打印状态
       logPoolState("Timeout failure ");
+      //记录连接超时
       metricsTracker.recordConnectionTimeout();
 
       String sqlState = null;
       int errorCode = 0;
+      //拿到上一个异常
       final var originalException = getLastConnectionFailure();
       if (originalException instanceof SQLException) {
          sqlState = ((SQLException) originalException).getSQLState();
@@ -757,8 +761,10 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
 
    /**
     * Creating and adding poolEntries (connections) to the pool.
+    * 执行实际的创建连接逻辑
     */
    private final class PoolEntryCreator implements Callable<Boolean> {
+
       private final String loggingPrefix;
 
       PoolEntryCreator() {
@@ -774,6 +780,7 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
          var backoffMs = 10L;
          var added = false;
          try {
+            //是否需要继续创建
             while (shouldContinueCreating()) {
                final var poolEntry = createPoolEntry();
                if (poolEntry != null) {
@@ -841,8 +848,7 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
 
             // Detect retrograde time, allowing +128ms as per NTP spec.
             if (plusMillis(now, 128) < plusMillis(previous, housekeepingPeriodMs)) {
-               logger.warn("{} - Retrograde clock change detected (housekeeper delta={}), soft-evicting connections from pool.",
-                  poolName, elapsedDisplayString(previous, now));
+               logger.warn("{} - Retrograde clock change detected (housekeeper delta={}), soft-evicting connections from pool.", poolName, elapsedDisplayString(previous, now));
                previous = now;
                softEvictConnections();
                return;
@@ -874,7 +880,9 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       }
    }
 
+   //到达最大存活时间后驱逐连接的任务
    private final class MaxLifetimeTask implements Runnable {
+
       private final PoolEntry poolEntry;
 
       MaxLifetimeTask(final PoolEntry poolEntry) {
@@ -888,6 +896,7 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       }
    }
 
+   //定时保持连接活性的任务
    private final class KeepaliveTask implements Runnable {
       private final PoolEntry poolEntry;
 
@@ -898,6 +907,7 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       public void run() {
          if (connectionBag.reserve(poolEntry)) {
             if (isConnectionDead(poolEntry.connection)) {
+               //重新弄一个
                softEvictConnection(poolEntry, DEAD_CONNECTION_MESSAGE, true);
                addBagItem(connectionBag.getWaitingThreadCount());
             } else {

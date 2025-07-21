@@ -70,10 +70,10 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    private final SynchronousQueue<T> handoffQueue;
 
    public interface IConcurrentBagEntry {
-      int STATE_NOT_IN_USE = 0;
-      int STATE_IN_USE = 1;
-      int STATE_REMOVED = -1;
-      int STATE_RESERVED = -2;
+      int STATE_NOT_IN_USE = 0;   // 空闲
+      int STATE_IN_USE = 1;       // 被线程使用中
+      int STATE_REMOVED = -1;     // 已从池中移除
+      int STATE_RESERVED = -2;    // 已预留(即将被用)
 
       boolean compareAndSet(int expectState, int newState);
 
@@ -272,6 +272,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * without the need to unreserve them.  Items that are not removed
     * from the bag can be make available for borrowing again by calling
     * the <code>unreserve(T)</code> method.
+    * 无法borrow
     *
     * @param bagEntry the item to reserve
     * @return true if the item was able to be reserved, false otherwise
@@ -301,6 +302,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    /**
     * Get the number of threads pending (waiting) for an item from the
     * bag to become available.
+    * 等待的 可用连接数
     *
     * @return the number of threads waiting for items from the bag
     */

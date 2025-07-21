@@ -22,11 +22,11 @@ import static com.zaxxer.hikari.util.ClockSource.plusMillis;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 池状态
  *
  * @author Brett Wooldridge
  */
-public abstract class PoolStats
-{
+public abstract class PoolStats {
    private final AtomicLong reloadAt;
    private final long timeoutMs;
 
@@ -37,14 +37,12 @@ public abstract class PoolStats
    protected volatile int maxConnections;
    protected volatile int minConnections;
 
-   public PoolStats(final long timeoutMs)
-   {
+   public PoolStats(final long timeoutMs) {
       this.timeoutMs = timeoutMs;
       this.reloadAt = new AtomicLong();
    }
 
-   public int getTotalConnections()
-   {
+   public int getTotalConnections() {
       if (shouldLoad()) {
          update();
       }
@@ -52,8 +50,7 @@ public abstract class PoolStats
       return totalConnections;
    }
 
-   public int getIdleConnections()
-   {
+   public int getIdleConnections() {
       if (shouldLoad()) {
          update();
       }
@@ -61,8 +58,7 @@ public abstract class PoolStats
       return idleConnections;
    }
 
-   public int getActiveConnections()
-   {
+   public int getActiveConnections() {
       if (shouldLoad()) {
          update();
       }
@@ -70,8 +66,7 @@ public abstract class PoolStats
       return activeConnections;
    }
 
-   public int getPendingThreads()
-   {
+   public int getPendingThreads() {
       if (shouldLoad()) {
          update();
       }
@@ -97,17 +92,15 @@ public abstract class PoolStats
 
    protected abstract void update();
 
-   private boolean shouldLoad()
-   {
+   private boolean shouldLoad() {
       for (; ; ) {
-          final var now = currentTime();
-          final var reloadTime = reloadAt.get();
-          if (reloadTime > now) {
-              return false;
-          }
-          else if (reloadAt.compareAndSet(reloadTime, plusMillis(now, timeoutMs))) {
-              return true;
-          }
+         final var now = currentTime();
+         final var reloadTime = reloadAt.get();
+         if (reloadTime > now) {
+            return false;
+         } else if (reloadAt.compareAndSet(reloadTime, plusMillis(now, timeoutMs))) {
+            return true;
+         }
       }
-  }
+   }
 }

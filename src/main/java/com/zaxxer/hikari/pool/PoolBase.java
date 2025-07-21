@@ -744,21 +744,28 @@ abstract class PoolBase {
 
    //自定义监控指标采集的接口
    interface IMetricsTrackerDelegate extends AutoCloseable {
+
+      //记录连接被使用
       default void recordConnectionUsage(PoolEntry poolEntry) {
       }
 
+      //记录连接创建
       default void recordConnectionCreated(long connectionCreatedMillis) {
       }
 
+      //记录borrow超时
       default void recordBorrowTimeoutStats(long startTime) {
       }
 
+      //记录borrow状态
       default void recordBorrowStats(final PoolEntry poolEntry, final long startTime) {
       }
 
+      //记录连接超时
       default void recordConnectionTimeout() {
       }
 
+      //关闭
       @Override
       default void close() {
       }
