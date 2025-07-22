@@ -26,28 +26,26 @@ import java.sql.Statement;
  * @author Brett Wooldridge
  * @author Yanming Zhou
  */
-public abstract class ProxyResultSet implements ResultSet
-{
+public abstract class ProxyResultSet implements ResultSet {
    protected final ProxyConnection connection;
    protected final ProxyStatement statement;
    final ResultSet delegate;
 
-   protected ProxyResultSet(ProxyConnection connection, ProxyStatement statement, ResultSet resultSet)
-   {
+   protected ProxyResultSet(ProxyConnection connection, ProxyStatement statement, ResultSet resultSet) {
       this.connection = connection;
       this.statement = statement;
       this.delegate = resultSet;
    }
 
-   final SQLException checkException(SQLException e)
-   {
+   final SQLException checkException(SQLException e) {
       return connection.checkException(e);
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public String toString()
-   {
+   public String toString() {
       return this.getClass().getSimpleName() + '@' + System.identityHashCode(this) + " wrapping " + delegate;
    }
 
@@ -55,54 +53,59 @@ public abstract class ProxyResultSet implements ResultSet
    //                 Overridden java.sql.ResultSet Methods
    // **********************************************************************
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public final Statement getStatement() throws SQLException
-   {
+   public final Statement getStatement() throws SQLException {
       return statement;
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void updateRow() throws SQLException
-   {
+   public void updateRow() throws SQLException {
       connection.markCommitStateDirty();
       delegate.updateRow();
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void insertRow() throws SQLException
-   {
+   public void insertRow() throws SQLException {
       connection.markCommitStateDirty();
       delegate.insertRow();
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public void deleteRow() throws SQLException
-   {
+   public void deleteRow() throws SQLException {
       connection.markCommitStateDirty();
       delegate.deleteRow();
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public final boolean isWrapperFor(Class<?> iface) throws SQLException
-   {
+   public final boolean isWrapperFor(Class<?> iface) throws SQLException {
       return iface.isInstance(delegate) || (delegate != null && delegate.isWrapperFor(iface));
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
    @SuppressWarnings("unchecked")
-   public final <T> T unwrap(Class<T> iface) throws SQLException
-   {
+   public final <T> T unwrap(Class<T> iface) throws SQLException {
       if (iface.isInstance(delegate)) {
          return (T) delegate;
-      }
-      else if (delegate != null) {
-          return delegate.unwrap(iface);
+      } else if (delegate != null) {
+         return delegate.unwrap(iface);
       }
 
       throw new SQLException("Wrapped ResultSet is not an instance of " + iface);

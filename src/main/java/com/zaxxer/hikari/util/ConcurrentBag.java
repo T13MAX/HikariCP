@@ -74,7 +74,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    private final AtomicInteger waiters;
    //池是否已关闭
    private volatile boolean closed;
-
+   //无缓冲 避免加锁复制和排队 减少上下文交换和内存开销
    private final SynchronousQueue<T> handoffQueue;
 
    public interface IConcurrentBagEntry {

@@ -38,8 +38,7 @@ import java.util.Set;
  * @author Brett Wooldridge
  * @author Yanming Zhou
  */
-public final class JavassistProxyFactory
-{
+public final class JavassistProxyFactory {
    private static ClassPool classPool;
    private static String genDirectory = "target" + File.separator + "classes";
 
@@ -108,10 +107,9 @@ public final class JavassistProxyFactory
    }
 
    /**
-    *  Generate Javassist Proxy Classes
+    * Generate Javassist Proxy Classes
     */
-   private static <T> void generateProxyClass(Class<T> primaryInterface, String superClassName, String methodBody) throws Exception
-   {
+   private static <T> void generateProxyClass(Class<T> primaryInterface, String superClassName, String methodBody) throws Exception {
       var newClassName = superClassName.replaceAll("(.+)\\.(\\w+)", "$1.Hikari$2");
 
       var superCt = classPool.getCtClass(superClassName);
@@ -166,8 +164,7 @@ public final class JavassistProxyFactory
             // Generate a method that simply invokes the same method on the delegate
             if (isThrowsSqlException(intfMethod)) {
                modifiedBody = modifiedBody.replace("method", method.getName());
-            }
-            else {
+            } else {
                modifiedBody = "{ return ((cast) delegate).method($$); }".replace("method", method.getName()).replace("cast", primaryInterface.getName());
             }
 
@@ -184,24 +181,21 @@ public final class JavassistProxyFactory
       targetCt.writeFile(genDirectory);
    }
 
-   private static boolean isThrowsSqlException(CtMethod method)
-   {
+   private static boolean isThrowsSqlException(CtMethod method) {
       try {
          for (var clazz : method.getExceptionTypes()) {
             if (clazz.getSimpleName().equals("SQLException")) {
                return true;
             }
          }
-      }
-      catch (NotFoundException e) {
+      } catch (NotFoundException e) {
          // fall thru
       }
 
       return false;
    }
 
-   private static boolean isDefaultMethod(Class<?> intf, CtMethod intfMethod) throws Exception
-   {
+   private static boolean isDefaultMethod(Class<?> intf, CtMethod intfMethod) throws Exception {
       var paramTypes = new ArrayList<Class<?>>();
 
       for (var pt : intfMethod.getParameterTypes()) {
@@ -211,8 +205,7 @@ public final class JavassistProxyFactory
       return intf.getDeclaredMethod(intfMethod.getName(), paramTypes.toArray(new Class[0])).toString().contains("default ");
    }
 
-   private static Set<Class<?>> getAllInterfaces(Class<?> clazz)
-   {
+   private static Set<Class<?>> getAllInterfaces(Class<?> clazz) {
       var interfaces = new LinkedHashSet<Class<?>>();
       for (var intf : clazz.getInterfaces()) {
          if (intf.getInterfaces().length > 0) {
@@ -231,39 +224,36 @@ public final class JavassistProxyFactory
       return interfaces;
    }
 
-   private static Class<?> toJavaClass(CtClass cls) throws Exception
-   {
+   private static Class<?> toJavaClass(CtClass cls) throws Exception {
       if (cls.getName().endsWith("[]")) {
          return Array.newInstance(toJavaClass(cls.getName().replace("[]", "")), 0).getClass();
-      }
-      else {
+      } else {
          return toJavaClass(cls.getName());
       }
    }
 
-   private static Class<?> toJavaClass(String cn) throws Exception
-   {
+   private static Class<?> toJavaClass(String cn) throws Exception {
       switch (cn) {
-      case "int":
-         return int.class;
-      case "long":
-         return long.class;
-      case "short":
-         return short.class;
-      case "byte":
-         return byte.class;
-      case "float":
-         return float.class;
-      case "double":
-         return double.class;
-      case "boolean":
-         return boolean.class;
-      case "char":
-         return char.class;
-      case "void":
-         return void.class;
-      default:
-         return Class.forName(cn);
+         case "int":
+            return int.class;
+         case "long":
+            return long.class;
+         case "short":
+            return short.class;
+         case "byte":
+            return byte.class;
+         case "float":
+            return float.class;
+         case "double":
+            return double.class;
+         case "boolean":
+            return boolean.class;
+         case "char":
+            return char.class;
+         case "void":
+            return void.class;
+         default:
+            return Class.forName(cn);
       }
    }
 }

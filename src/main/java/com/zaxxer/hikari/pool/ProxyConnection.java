@@ -36,32 +36,48 @@ import static com.zaxxer.hikari.SQLExceptionOverride.Override.*;
  * @author Brett Wooldridge
  */
 public abstract class ProxyConnection implements Connection {
-   static final int DIRTY_BIT_READONLY = 0b000001;
-   static final int DIRTY_BIT_AUTOCOMMIT = 0b000010;
-   static final int DIRTY_BIT_ISOLATION = 0b000100;
-   static final int DIRTY_BIT_CATALOG = 0b001000;
-   static final int DIRTY_BIT_NETTIMEOUT = 0b010000;
-   static final int DIRTY_BIT_SCHEMA = 0b100000;
 
+   // 各种连接属性的“脏位”标志 用于标记哪些属性被修改过
+   static final int DIRTY_BIT_READONLY = 0b000001;       // 只读属性被修改
+   static final int DIRTY_BIT_AUTOCOMMIT = 0b000010;     // 自动提交属性被修改
+   static final int DIRTY_BIT_ISOLATION = 0b000100;      // 事务隔离级别被修改
+   static final int DIRTY_BIT_CATALOG = 0b001000;        // catalog被修改
+   static final int DIRTY_BIT_NETTIMEOUT = 0b010000;     // 网络超时被修改
+   static final int DIRTY_BIT_SCHEMA = 0b100000;         // schema被修改
+
+   // 日志记录器
    private static final Logger LOGGER;
+   // 数据库错误状态集合 用于判断连接是否应被抛弃
    private static final Set<String> ERROR_STATES;
+   // 数据库错误码集合 同上
    private static final Set<Integer> ERROR_CODES;
 
+   // 实际的JDBC连接
    @SuppressWarnings("WeakerAccess")
    protected Connection delegate;
 
+   // 当前连接对应的池条目
    private final PoolEntry poolEntry;
+   // 用于检测连接泄漏的任务
    private final ProxyLeakTask leakTask;
+   // 当前连接打开的语句列表
    private final FastList<Statement> openStatements;
 
+   // 属性修改位标志
    private int dirtyBits;
+   // 标记是否手动更改了事务提交状态
    private boolean isCommitStateDirty;
-
+   // 当前连接是否处于只读模式
    private boolean isReadOnly;
+   // 当前连接是否自动提交
    private boolean isAutoCommit;
+   // 当前网络超时时间
    private int networkTimeout;
+   // 当前事务隔离级别
    private int transactionIsolation;
+   // 当前连接的catalog
    private String dbcatalog;
+   // 当前连接的schema
    private String dbschema;
 
    // static initializer
@@ -83,12 +99,7 @@ public abstract class ProxyConnection implements Connection {
       ERROR_CODES.add(1105);
    }
 
-   protected ProxyConnection(final PoolEntry poolEntry,
-                             final Connection connection,
-                             final FastList<Statement> openStatements,
-                             final ProxyLeakTask leakTask,
-                             final boolean isReadOnly,
-                             final boolean isAutoCommit) {
+   protected ProxyConnection(final PoolEntry poolEntry, final Connection connection, final FastList<Statement> openStatements, final ProxyLeakTask leakTask, final boolean isReadOnly, final boolean isAutoCommit) {
       this.poolEntry = poolEntry;
       this.delegate = connection;
       this.openStatements = openStatements;
@@ -141,33 +152,36 @@ public abstract class ProxyConnection implements Connection {
       return poolEntry;
    }
 
-   @SuppressWarnings("ConstantConditions")
+   @SuppressWarnings("ConstantConditions") // 忽略常量条件的警告
    final SQLException checkException(SQLException sqle) {
+      // 是否需要驱逐连接
       var evict = false;
       SQLException nse = sqle;
       final var exceptionOverride = poolEntry.getPoolBase().exceptionOverride;
+
+      // 遍历最多10层异常链 检查是否是致命异常
       for (int depth = 0; delegate != ClosedConnection.CLOSED_CONNECTION && nse != null && depth < 10; depth++) {
          final var sqlState = nse.getSQLState();
          final var shouldEvict = exceptionOverride != null ? exceptionOverride.adjudicate(nse) : CONTINUE_EVICT;
-         if (shouldEvict == DO_NOT_EVICT) {
-            break;
-         } else if (sqlState != null && sqlState.startsWith("08")
-            || ERROR_STATES.contains(sqlState)
-            || ERROR_CODES.contains(nse.getErrorCode())
-            || shouldEvict == MUST_EVICT) {
 
-            // broken connection
+         if (shouldEvict == DO_NOT_EVICT) {
+            break; // 不需要驱逐
+         } else if (sqlState != null && sqlState.startsWith("08") // 连接异常类SQLState
+            || ERROR_STATES.contains(sqlState) // 命中配置的错误状态
+            || ERROR_CODES.contains(nse.getErrorCode()) // 命中配置的错误码
+            || shouldEvict == MUST_EVICT) { // 明确要求驱逐
+
             evict = true;
             break;
          } else {
-            nse = nse.getNextException();
+            nse = nse.getNextException(); // 查看下一个异常
          }
       }
 
+      // 如果需要驱逐 记录日志 取消泄漏检测 关闭连接
       if (evict) {
          var exception = (nse != null) ? nse : sqle;
-         LOGGER.warn("{} - Connection {} marked as broken because of SQLSTATE({}), ErrorCode({})",
-            poolEntry.getPoolName(), delegate, exception.getSQLState(), exception.getErrorCode(), exception);
+         LOGGER.warn("{} - Connection {} marked as broken because of SQLSTATE({}), ErrorCode({})", poolEntry.getPoolName(), delegate, exception.getSQLState(), exception.getErrorCode(), exception);
          leakTask.cancel();
          poolEntry.evict("(connection is broken)");
          delegate = ClosedConnection.CLOSED_CONNECTION;
@@ -180,12 +194,14 @@ public abstract class ProxyConnection implements Connection {
       openStatements.remove(statement);
    }
 
+   //标记事务提交状态被手动修改
    final void markCommitStateDirty() {
       if (!isAutoCommit) {
          isCommitStateDirty = true;
       }
    }
 
+   //取消泄漏检测
    void cancelLeakTask() {
       leakTask.cancel();
    }
@@ -204,8 +220,7 @@ public abstract class ProxyConnection implements Connection {
             try (Statement ignored = openStatements.get(i)) {
                // automatic resource cleanup
             } catch (SQLException e) {
-               LOGGER.warn("{} - Connection {} marked as broken because of an exception closing open statements during Connection.close()",
-                  poolEntry.getPoolName(), delegate);
+               LOGGER.warn("{} - Connection {} marked as broken because of an exception closing open statements during Connection.close()", poolEntry.getPoolName(), delegate);
                leakTask.cancel();
                poolEntry.evict("(exception closing Statements during Connection.close())");
                delegate = ClosedConnection.CLOSED_CONNECTION;
@@ -225,6 +240,7 @@ public abstract class ProxyConnection implements Connection {
     */
    @Override
    public final void close() throws SQLException {
+
       // Closing statements can cause connection eviction, so this must run before the conditional below
       closeStatements();
 

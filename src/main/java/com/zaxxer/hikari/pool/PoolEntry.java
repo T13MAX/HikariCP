@@ -37,24 +37,35 @@ import static com.zaxxer.hikari.util.ClockSource.currentTime;
  */
 final class PoolEntry implements IConcurrentBagEntry {
 
+   // 日志记录器 用于输出PoolEntry相关的日志
    private static final Logger LOGGER = LoggerFactory.getLogger(PoolEntry.class);
+   // 原子字段更新器 用于线程安全地修改state字段
    private static final AtomicIntegerFieldUpdater<PoolEntry> stateUpdater;
 
+   // 当前持有的数据库连接
    Connection connection;
+   // 最后一次访问连接的时间（用于统计或驱逐策略）
    long lastAccessed;
+   // 最后一次借出连接的时间
    long lastBorrowed;
 
+   // 抑制字段可被局部变量替代的警告
    @SuppressWarnings("FieldCanBeLocal")
+   // 当前连接状态 使用int表示不同状态值(空闲 使用中 已关闭)
    private volatile int state = 0;
+   // 是否标记为驱逐 true表示将被回收
    private volatile boolean evict;
-
+   // 生命周期定时任务 例如最大存活时间到期时关闭连接
    private volatile ScheduledFuture<?> endOfLife;
+   // keepalive定时任务 用于保持连接活跃
    private volatile ScheduledFuture<?> keepalive;
-
+   // 记录当前连接打开的SQL语句列表
    private final FastList<Statement> openStatements;
+   // 所属的连接池引用
    private final HikariPool hikariPool;
-
+   // 当前连接是否是只读模式
    private final boolean isReadOnly;
+   // 当前连接是否是自动提交事务
    private final boolean isAutoCommit;
 
    static {
