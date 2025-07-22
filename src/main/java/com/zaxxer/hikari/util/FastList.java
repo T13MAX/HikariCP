@@ -33,15 +33,21 @@ import java.util.function.UnaryOperator;
 /**
  * Fast list without range checking.
  * 轻量级列表 没有范围检测
+ * 内部用数组实现 避免了ArrayList的一些边界检查和扩容开销
+ * 适合高频增删 尤其在连接池这种场景下效率更好
  *
  * @author Brett Wooldridge
  */
 @SuppressWarnings("NullableProblems")
 public final class FastList<T> implements List<T>, RandomAccess, Serializable {
+
    private static final long serialVersionUID = -4598088075242913858L;
 
+   //元素类型
    private final Class<?> clazz;
+   //底层数组
    private T[] elementData;
+   //大小
    private int size;
 
    /**

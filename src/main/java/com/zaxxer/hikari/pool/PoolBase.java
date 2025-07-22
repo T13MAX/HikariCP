@@ -61,6 +61,7 @@ abstract class PoolBase {
    private final Logger logger = LoggerFactory.getLogger(PoolBase.class);
    // 连接池配置对象，包含各种连接池参数
    public final HikariConfig config;
+
    // 指标追踪委托 用于收集连接池指标
    IMetricsTrackerDelegate metricsTracker;
    // 连接池名称
@@ -102,6 +103,7 @@ abstract class PoolBase {
    private Executor netTimeoutExecutor;
    // 底层真实数据源
    private DataSource dataSource;
+
    // 连接默认的schema
    private final String schema;
    // 是否只读连接

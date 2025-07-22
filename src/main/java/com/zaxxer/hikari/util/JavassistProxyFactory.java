@@ -34,6 +34,7 @@ import java.util.Set;
  * {@link PreparedStatement}, and {@link CallableStatement}.  Additionally it injects
  * method bodies into the {@link ProxyFactory} class methods that can instantiate
  * instances of the generated proxies.
+ * Javassist代理工厂 填充代码用的 构建时执行 通过插件或脚本触发
  *
  * @author Brett Wooldridge
  * @author Yanming Zhou

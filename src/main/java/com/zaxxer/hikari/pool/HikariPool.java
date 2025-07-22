@@ -50,6 +50,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 /**
  * This is the primary connection pool class that provides the basic
  * pooling behavior for HikariCP.
+ * Hikari连接池
  *
  * @author Brett Wooldridge
  */
@@ -132,9 +133,9 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       this.addConnectionExecutor = createThreadPoolExecutor(maxPoolSize, poolName + ":connection-adder", threadFactory, new CustomDiscardPolicy());
       //关闭
       this.closeConnectionExecutor = createThreadPoolExecutor(maxPoolSize, poolName + ":connection-closer", threadFactory, new ThreadPoolExecutor.CallerRunsPolicy());
-
+      //泄漏检测任务工厂
       this.leakTaskFactory = new ProxyLeakTaskFactory(config.getLeakDetectionThreshold(), houseKeepingExecutorService);
-
+      //清理任务
       this.houseKeeperTask = houseKeepingExecutorService.scheduleWithFixedDelay(new HouseKeeper(), 100L, housekeepingPeriodMs, MILLISECONDS);
 
       //阻塞直到失败

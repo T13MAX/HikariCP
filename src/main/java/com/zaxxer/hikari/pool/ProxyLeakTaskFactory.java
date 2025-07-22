@@ -26,6 +26,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * @author Andreas Brenk
  */
 class ProxyLeakTaskFactory {
+
    //定时任务线程池
    private ScheduledExecutorService executorService;
    //连接泄漏检测阈值

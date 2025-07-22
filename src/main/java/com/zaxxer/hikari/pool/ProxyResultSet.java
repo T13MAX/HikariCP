@@ -22,13 +22,18 @@ import java.sql.Statement;
 
 /**
  * This is the proxy class for {@link ResultSet}.
+ * 代理结果集
  *
  * @author Brett Wooldridge
  * @author Yanming Zhou
  */
 public abstract class ProxyResultSet implements ResultSet {
+
+   //代理连接
    protected final ProxyConnection connection;
+   //代理Statement
    protected final ProxyStatement statement;
+   //委托 原生结果
    final ResultSet delegate;
 
    protected ProxyResultSet(ProxyConnection connection, ProxyStatement statement, ResultSet resultSet) {

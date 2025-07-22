@@ -194,7 +194,15 @@ public abstract class ProxyConnection implements Connection {
       openStatements.remove(statement);
    }
 
-   //标记事务提交状态被手动修改
+   /**
+    * 标记事务提交状态被手动修改 归还的时候做一些处理
+    * 如果 dirty 且是自动提交关闭状态下 会跳过清理(默认认为用户处理了)
+    * 如果不是自动提交 且 dirty 会执行 rollback() 保证下个使用者拿到干净连接
+    * 还要重置一些属性
+    *
+    * @Author t13max
+    * @Date 17:00 2025/7/22
+    */
    final void markCommitStateDirty() {
       if (!isAutoCommit) {
          isCommitStateDirty = true;
@@ -245,10 +253,14 @@ public abstract class ProxyConnection implements Connection {
       closeStatements();
 
       if (delegate != ClosedConnection.CLOSED_CONNECTION) {
+
+         //取消泄漏检测任务
          leakTask.cancel();
 
          try {
+            //脏了 并且不是自动提交 说明执行了sql没提交 需要回滚
             if (isCommitStateDirty && !isAutoCommit) {
+               //回滚
                delegate.rollback();
                LOGGER.debug("{} - Executed rollback on connection {} due to dirty commit state on close().", poolEntry.getPoolName(), delegate);
             }
@@ -264,7 +276,9 @@ public abstract class ProxyConnection implements Connection {
                throw checkException(e);
             }
          } finally {
+            //置为关闭连接
             delegate = ClosedConnection.CLOSED_CONNECTION;
+            //回收
             poolEntry.recycle();
          }
       }

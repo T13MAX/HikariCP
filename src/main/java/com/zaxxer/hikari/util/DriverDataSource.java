@@ -30,8 +30,15 @@ import org.slf4j.LoggerFactory;
 
 import static com.zaxxer.hikari.util.UtilityElf.maskPasswordInJdbcUrl;
 
-public final class DriverDataSource implements DataSource
-{
+/**
+ * 简单DataSource实现
+ * 根据 JDBC URL 和驱动信息 创建数据库连接
+ *
+ * @Author t13max
+ * @Date 16:31 2025/7/22
+ */
+public final class DriverDataSource implements DataSource {
+
    private static final Logger LOGGER = LoggerFactory.getLogger(DriverDataSource.class);
    private static final String PASSWORD = "password";
    private static final String USER = "user";
@@ -40,8 +47,7 @@ public final class DriverDataSource implements DataSource
    private final Properties driverProperties;
    private Driver driver;
 
-   public DriverDataSource(String jdbcUrl, String driverClassName, Properties properties, String username, String password)
-   {
+   public DriverDataSource(String jdbcUrl, String driverClassName, Properties properties, String username, String password) {
       this.jdbcUrl = jdbcUrl;
       this.driverProperties = new Properties();
 
@@ -73,10 +79,9 @@ public final class DriverDataSource implements DataSource
                   try {
                      driverClass = threadContextClassLoader.loadClass(driverClassName);
                      LOGGER.debug("Driver class {} found in Thread context class loader {}", driverClassName, threadContextClassLoader);
-                  }
-                  catch (ClassNotFoundException e) {
+                  } catch (ClassNotFoundException e) {
                      LOGGER.debug("Driver class {} not found in Thread context class loader {}, trying classloader {}",
-                                  driverClassName, threadContextClassLoader, this.getClass().getClassLoader());
+                        driverClassName, threadContextClassLoader, this.getClass().getClassLoader());
                   }
                }
 
@@ -104,25 +109,21 @@ public final class DriverDataSource implements DataSource
          if (driver == null) {
             driver = DriverManager.getDriver(jdbcUrl);
             LOGGER.debug("Loaded driver with class name {} for jdbcUrl={}", driver.getClass().getName(), sanitizedUrl);
-         }
-         else if (!driver.acceptsURL(jdbcUrl)) {
+         } else if (!driver.acceptsURL(jdbcUrl)) {
             throw new RuntimeException("Driver " + driverClassName + " claims to not accept jdbcUrl, " + sanitizedUrl);
          }
-      }
-      catch (SQLException e) {
+      } catch (SQLException e) {
          throw new RuntimeException("Failed to get driver instance for jdbcUrl=" + sanitizedUrl, e);
       }
    }
 
    @Override
-   public Connection getConnection() throws SQLException
-   {
+   public Connection getConnection() throws SQLException {
       return driver.connect(jdbcUrl, driverProperties);
    }
 
    @Override
-   public Connection getConnection(final String username, final String password) throws SQLException
-   {
+   public Connection getConnection(final String username, final String password) throws SQLException {
       final var cloned = (Properties) driverProperties.clone();
       if (username != null) {
          cloned.put(USER, username);
@@ -138,44 +139,37 @@ public final class DriverDataSource implements DataSource
    }
 
    @Override
-   public PrintWriter getLogWriter() throws SQLException
-   {
+   public PrintWriter getLogWriter() throws SQLException {
       throw new SQLFeatureNotSupportedException();
    }
 
    @Override
-   public void setLogWriter(PrintWriter logWriter) throws SQLException
-   {
+   public void setLogWriter(PrintWriter logWriter) throws SQLException {
       throw new SQLFeatureNotSupportedException();
    }
 
    @Override
-   public void setLoginTimeout(int seconds) throws SQLException
-   {
+   public void setLoginTimeout(int seconds) throws SQLException {
       DriverManager.setLoginTimeout(seconds);
    }
 
    @Override
-   public int getLoginTimeout() throws SQLException
-   {
+   public int getLoginTimeout() throws SQLException {
       return DriverManager.getLoginTimeout();
    }
 
    @Override
-   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException
-   {
+   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
       return driver.getParentLogger();
    }
 
    @Override
-   public <T> T unwrap(Class<T> iface) throws SQLException
-   {
+   public <T> T unwrap(Class<T> iface) throws SQLException {
       throw new SQLFeatureNotSupportedException();
    }
 
    @Override
-   public boolean isWrapperFor(Class<?> iface) throws SQLException
-   {
+   public boolean isWrapperFor(Class<?> iface) throws SQLException {
       return false;
    }
 }

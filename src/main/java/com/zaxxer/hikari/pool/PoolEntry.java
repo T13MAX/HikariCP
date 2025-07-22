@@ -83,6 +83,7 @@ final class PoolEntry implements IConcurrentBagEntry {
 
    /**
     * Release this entry back to the pool.
+    * 释放这个Entry 归还到池子
     */
    void recycle() {
       if (connection != null) {

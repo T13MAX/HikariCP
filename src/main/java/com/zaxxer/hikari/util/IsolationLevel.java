@@ -16,8 +16,13 @@
 
 package com.zaxxer.hikari.util;
 
-public enum IsolationLevel
-{
+/**
+ * 隔离级别枚举
+ *
+ * @Author t13max
+ * @Date 16:37 2025/7/22
+ */
+public enum IsolationLevel {
    TRANSACTION_NONE(0),
    TRANSACTION_READ_UNCOMMITTED(1),
    TRANSACTION_READ_COMMITTED(2),

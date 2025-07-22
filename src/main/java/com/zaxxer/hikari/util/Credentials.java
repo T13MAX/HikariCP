@@ -20,9 +20,9 @@ import javax.management.ConstructorParameters;
 
 /**
  * A simple class to hold connection credentials and is designed to be immutable.
+ * 连接凭证 不可变
  */
-public final class Credentials
-{
+public final class Credentials {
 
    private final String username;
    private final String password;
@@ -44,9 +44,8 @@ public final class Credentials
     * @param username the username
     * @param password the password
     */
-   @ConstructorParameters({ "username", "password" })
-   public Credentials(final String username, final String password)
-   {
+   @ConstructorParameters({"username", "password"})
+   public Credentials(final String username, final String password) {
       this.username = username;
       this.password = password;
    }
@@ -56,8 +55,7 @@ public final class Credentials
     *
     * @return the username
     */
-   public String getUsername()
-   {
+   public String getUsername() {
       return username;
    }
 
@@ -66,8 +64,7 @@ public final class Credentials
     *
     * @return the password
     */
-   public String getPassword()
-   {
+   public String getPassword() {
       return password;
    }
 }

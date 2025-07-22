@@ -24,6 +24,8 @@ import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
+ * 工具类小帮手(Elf -> 精灵)
+ *
  * @author Brett Wooldridge
  */
 public final class UtilityElf {

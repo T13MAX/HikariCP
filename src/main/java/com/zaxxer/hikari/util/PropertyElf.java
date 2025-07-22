@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 /**
  * A class that reflectively sets bean properties on a target object.
  * 从 Properties 或系统属性中读取配置 设置的到目标对象
+ *
  * @author Brett Wooldridge
  */
 public final class PropertyElf {

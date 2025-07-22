@@ -27,17 +27,26 @@ import org.slf4j.LoggerFactory;
  * A Runnable that is scheduled in the future to report leaks.  The ScheduledFuture is
  * cancelled if the connection is closed before the leak time expires.
  * 检测泄漏的任务
+ * 超过一定时间没有归还连接池 则认定泄漏 打印警告日志
  *
  * @author Brett Wooldridge
  */
 class ProxyLeakTask implements Runnable {
+
    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyLeakTask.class);
+
+   //空的任务
    static final ProxyLeakTask NO_LEAK;
 
+   //定时任务结果 用于cancel
    private ScheduledFuture<?> scheduledFuture;
+   //连接名
    private String connectionName;
+   //用于找到创建任务的时候的堆栈
    private Exception exception;
+   //线程名
    private String threadName;
+   //是否泄漏
    private boolean isLeaked;
 
    static {
@@ -74,17 +83,20 @@ class ProxyLeakTask implements Runnable {
     */
    @Override
    public void run() {
+
       isLeaked = true;
 
       final var stackTrace = exception.getStackTrace();
       final var trace = new StackTraceElement[stackTrace.length - 5];
 
+      //去掉内部调用的无用堆栈
       System.arraycopy(stackTrace, 5, trace, 0, trace.length);
 
       exception.setStackTrace(trace);
       LOGGER.warn("Connection leak detection triggered for {} on thread {}, stack trace follows", connectionName, threadName, exception);
    }
 
+   //取消任务
    void cancel() {
       scheduledFuture.cancel(false);
       if (isLeaked) {

@@ -23,32 +23,37 @@ import java.sql.SQLException;
 
 /**
  * This is the proxy class for {@link DatabaseMetaData}.
+ * DatabaseMetaData代理类
+ * 对JDBC的DatabaseMetaData代理封装 对调用元数据方法时进行拦截 进行资源管理
+ * 比如记录活动状态 防止泄漏
+ * 抽象 具体由javassist生成
  *
  * @author Brett Wooldridge
  * @author Yanming Zhou
  */
-public abstract class ProxyDatabaseMetaData implements DatabaseMetaData
-{
+public abstract class ProxyDatabaseMetaData implements DatabaseMetaData {
+
+   //代理连接
    protected final ProxyConnection connection;
 
+   //委托的代理对象
    @SuppressWarnings("WeakerAccess")
    protected final DatabaseMetaData delegate;
 
-   ProxyDatabaseMetaData(ProxyConnection connection, DatabaseMetaData metaData)
-   {
+   ProxyDatabaseMetaData(ProxyConnection connection, DatabaseMetaData metaData) {
       this.connection = connection;
       this.delegate = metaData;
    }
 
-   final SQLException checkException(SQLException e)
-   {
+   final SQLException checkException(SQLException e) {
       return connection.checkException(e);
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public final String toString()
-   {
+   public final String toString() {
       final var delegateToString = delegate.toString();
       return this.getClass().getSimpleName() + '@' + System.identityHashCode(this) + " wrapping " + delegateToString;
    }
@@ -57,10 +62,11 @@ public abstract class ProxyDatabaseMetaData implements DatabaseMetaData
    //                 Overridden java.sql.DatabaseMetaData Methods
    // **********************************************************************
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public final Connection getConnection()
-   {
+   public final Connection getConnection() {
       return connection;
    }
 
@@ -324,22 +330,23 @@ public abstract class ProxyDatabaseMetaData implements DatabaseMetaData
       return ProxyFactory.getProxyResultSet(connection, (ProxyStatement) statement, resultSet);
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
-   public final boolean isWrapperFor(Class<?> iface) throws SQLException
-   {
+   public final boolean isWrapperFor(Class<?> iface) throws SQLException {
       return iface.isInstance(delegate) || (delegate != null && delegate.isWrapperFor(iface));
    }
 
-   /** {@inheritDoc} */
+   /**
+    * {@inheritDoc}
+    */
    @Override
    @SuppressWarnings("unchecked")
-   public final <T> T unwrap(Class<T> iface) throws SQLException
-   {
+   public final <T> T unwrap(Class<T> iface) throws SQLException {
       if (iface.isInstance(delegate)) {
          return (T) delegate;
-      }
-      else if (delegate != null) {
+      } else if (delegate != null) {
          return delegate.unwrap(iface);
       }
 
