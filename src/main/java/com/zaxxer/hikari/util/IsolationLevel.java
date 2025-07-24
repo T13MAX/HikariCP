@@ -20,7 +20,7 @@ package com.zaxxer.hikari.util;
  * 隔离级别枚举
  *
  * @Author t13max
- * @Date 16:37 2025/7/22
+ * @Date 15:21 2025/7/23
  */
 public enum IsolationLevel {
    TRANSACTION_NONE(0),
